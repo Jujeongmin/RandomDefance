@@ -22,28 +22,29 @@ public static class MainScreenDecorator
     const string MainScenePath = "Assets/Scenes/MainScene.unity";
     const string RubyArtPath = "Assets/Store/ruby-portrait-1080x1920.png";
     const string LogoPath = "Assets/GData/Image/UI/title-logo.png";
-    const string ButtonAtlasPath = "Assets/Down/Universal Stylized UI/Atlases/Complete_Stylized_UI_elements_buttons.png";
-    const string FontPath = "Assets/GData/Fonts/Paperlogy-9Black SDF.asset";
-    const string CharacterDir = "Assets/GData/Image/Character";
+    // 디자인 토큰의 단일 출처는 BrandUI입니다. 여기서는 이름만 짧게 빌려 씁니다.
+    const string ButtonAtlasPath = BrandUI.ButtonAtlasPath;
+    const string FontPath = BrandUI.FontPath;
+    const string CharacterDir = BrandUI.CharacterDir;
 
-    const string GoldSquare = "Complete_Stylized_UI_elements_buttons_36";
-    const string NavyPill = "Complete_Stylized_UI_elements_buttons_37";
-    const string WhitePill = "Complete_Stylized_UI_elements_buttons_55"; // 순백 라운드 사각 — 틴트로 원하는 색을 낸다
-    const string GoldFlat = "Complete_Stylized_UI_elements_buttons_53";  // 평평한 골드 — 작은 버튼용 (대칭 여백, 입체 턱 없음)
+    const string GoldSquare = BrandUI.GoldSquare;
+    const string NavyPill = BrandUI.NavyPill;
+    const string WhitePill = BrandUI.WhitePill;
+    const string GoldFlat = BrandUI.GoldFlat;
 
-    static readonly Color GoldButtonLabel = new Color(0.11f, 0.08f, 0.30f, 1f);
-    static readonly Color NavyButtonLabel = new Color(0.96f, 0.90f, 0.78f, 1f);
-    static readonly Color TapTextColor = new Color(0.96f, 0.90f, 0.78f, 1f);
-    static readonly Color CreamText = new Color(0.96f, 0.90f, 0.78f, 1f);
-    static readonly Color PanelNavy = new Color(0.045f, 0.04f, 0.115f, 0.96f);  // 페이지 패널 배경
-    static readonly Color CardNavy = new Color(0.06f, 0.055f, 0.14f, 1f);       // 설정/확률 카드
-    static readonly Color BarNavy = new Color(0.05f, 0.05f, 0.12f, 0.92f);      // 재화 바
-    static readonly Color DangerRed = new Color(0.55f, 0.16f, 0.18f, 1f);       // 데이터 초기화
+    static readonly Color GoldButtonLabel = BrandUI.GoldButtonLabel;
+    static readonly Color NavyButtonLabel = BrandUI.NavyButtonLabel;
+    static readonly Color TapTextColor = BrandUI.CreamText;
+    static readonly Color CreamText = BrandUI.CreamText;
+    static readonly Color PanelNavy = BrandUI.PanelNavy;
+    static readonly Color CardNavy = BrandUI.CardNavy;
+    static readonly Color BarNavy = BrandUI.BarNavy;
+    static readonly Color DangerRed = BrandUI.DangerRed;
 
     static readonly string[] UnitClasses = { "Warrior", "Wizard", "Archer" };
     const int IdlePoseFrame = 1; // 정면 idle 포즈 (뒷모습 9~11 제외)
 
-    const int UiLayer = 5;
+    const int UiLayer = BrandUI.UiLayer;
 
     [MenuItem("Tools/Random Defense/Decorate Main Screen")]
     public static void Decorate()

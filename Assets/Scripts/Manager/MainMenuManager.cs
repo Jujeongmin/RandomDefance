@@ -18,6 +18,16 @@ public class MainMenuManager : MonoBehaviour
     [SerializeField] RarityOddsPanel m_oddsPanel;
     [Tooltip("무한모드 랭킹(리더보드) 버튼")]
     [SerializeField] Button m_rankingButton;
+    [Tooltip("유닛 도감 버튼")]
+    [SerializeField] Button m_collectionButton;
+    [Tooltip("유닛 도감 패널")]
+    [SerializeField] CollectionPanel m_collectionPanel;
+    [Tooltip("일일 보상(출석·미션) 버튼")]
+    [SerializeField] Button m_dailyButton;
+    [Tooltip("일일 보상 패널")]
+    [SerializeField] DailyPanel m_dailyPanel;
+    [Tooltip("수령 대기 중인 일일 보상이 있을 때 켜지는 빨간 점")]
+    [SerializeField] GameObject m_dailyBadge;
 
     [Header("Settings UI")]
     [SerializeField] GameObject m_settingPanel;
@@ -45,6 +55,8 @@ public class MainMenuManager : MonoBehaviour
         m_modeButton?.onClick.AddListener(OnModeButtonClicked);
         m_oddsButton?.onClick.AddListener(() => { if (m_oddsPanel != null) m_oddsPanel.Open(); });
         m_rankingButton?.onClick.AddListener(() => LeaderboardService.ShowLeaderboard());
+        m_collectionButton?.onClick.AddListener(() => { if (m_collectionPanel != null) m_collectionPanel.Open(); });
+        m_dailyButton?.onClick.AddListener(OnDailyButtonClicked);
         m_bgmButton?.onClick.AddListener(ToggleBgm);
         m_sfxButton?.onClick.AddListener(ToggleSfx);
         m_koreanButton?.onClick.AddListener(() => SetLanguage(false));
@@ -53,8 +65,37 @@ public class MainMenuManager : MonoBehaviour
         m_closeButton?.onClick.AddListener(CloseSettings);
 
         if (m_settingPanel != null) m_settingPanel.SetActive(false);
+        if (m_collectionPanel != null) m_collectionPanel.gameObject.SetActive(false);
+        if (m_dailyPanel != null) m_dailyPanel.gameObject.SetActive(false);
+        BindDaily();
         ApplyLanguage();
         Time.timeScale = 1f;
+    }
+
+    void OnDailyButtonClicked()
+    {
+        if (m_dailyPanel != null) m_dailyPanel.Open();
+    }
+
+    DailyMissionManager m_daily;
+
+    /// <summary>보상을 수령하면 배지가 바로 꺼지도록 일일 미션 매니저의 변경 이벤트를 구독합니다.</summary>
+    void BindDaily()
+    {
+        m_daily = GManager.Instance != null ? GManager.Instance.IsDaily : null;
+        if (m_daily != null) m_daily.Changed += RefreshDailyBadge;
+        RefreshDailyBadge();
+    }
+
+    void OnDestroy()
+    {
+        if (m_daily != null) m_daily.Changed -= RefreshDailyBadge;
+    }
+
+    void RefreshDailyBadge()
+    {
+        if (m_dailyBadge == null) return;
+        m_dailyBadge.SetActive(m_daily != null && m_daily.HasClaimable);
     }
 
     void OpenSettings()
@@ -132,6 +173,8 @@ public class MainMenuManager : MonoBehaviour
         RefreshModeButtons();
         if (m_oddsButton != null) SetButtonText(m_oddsButton, english ? "ODDS" : "확률 정보");
         if (m_rankingButton != null) SetButtonText(m_rankingButton, english ? "RANKING" : "랭킹");
+        if (m_collectionButton != null) SetButtonText(m_collectionButton, english ? "COLLECTION" : "도감");
+        if (m_dailyButton != null) SetButtonText(m_dailyButton, english ? "DAILY" : "일일 보상");
     }
 
     void RefreshResetLabel()

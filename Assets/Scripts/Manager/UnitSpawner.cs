@@ -84,6 +84,8 @@ public class UnitSpawner : MonoBehaviour
         RefreshGoldText();
 
         ExecuteSpawn(spawnType, rarity, 0f);
+        // 도감 등록 · 일일 미션 진행 · 튜토리얼 1단계는 실제 소환에서만 발생합니다
+        game.NotifyUnitSummoned(spawnType, rarity);
     }
 
     public void ForceSpawnWithRarity(RarityType.TYPE forcedRarity)

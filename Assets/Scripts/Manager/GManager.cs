@@ -21,9 +21,12 @@ public class GManager : MonoBehaviour
     ClassRarityDisplay m_classRarityDisplay = null;
     PlayerProgressManager m_playerProgress = null;
     ResearchManager m_researchManager = null;
+    CollectionManager m_collectionManager = null;
+    DailyMissionManager m_dailyMissionManager = null;
 
     ResultPanel m_resultPanel = null;
     GameObject m_settingsPanel = null;
+    TutorialOverlay m_tutorialOverlay = null;
     Transform m_damageTextParent = null;
 
     TextMeshProUGUI m_selectedClassNameText = null;
@@ -58,6 +61,8 @@ public class GManager : MonoBehaviour
     public GameBalanceData Balance => m_balanceData;
     public PlayerProgressManager IsProgress => m_playerProgress;
     public ResearchManager IsResearch => m_researchManager;
+    public CollectionManager IsCollection => m_collectionManager;
+    public DailyMissionManager IsDaily => m_dailyMissionManager;
 
     // ── 런타임 등록 메서드 (각 게임씬 매니저가 Start에서 자기 자신을 등록) ──
     public void RegisterMobManager(MobManager mgr)
@@ -201,6 +206,14 @@ public class GManager : MonoBehaviour
             if (m_researchManager == null) m_researchManager = gameObject.AddComponent<ResearchManager>();
             m_researchManager.Initialize(m_playerProgress, m_balanceData);
 
+            m_collectionManager = GetComponent<CollectionManager>();
+            if (m_collectionManager == null) m_collectionManager = gameObject.AddComponent<CollectionManager>();
+            m_collectionManager.Initialize(m_playerProgress, m_balanceData);
+
+            m_dailyMissionManager = GetComponent<DailyMissionManager>();
+            if (m_dailyMissionManager == null) m_dailyMissionManager = gameObject.AddComponent<DailyMissionManager>();
+            m_dailyMissionManager.Initialize(m_playerProgress, m_balanceData);
+
             LeaderboardService.Initialize();
         }
         else
@@ -264,17 +277,30 @@ public class GManager : MonoBehaviour
                 sceneSettingPanel.gameObject.SetActive(false);
             }
 
+            // 튜토리얼 오버레이도 비활성 상태로 배치돼 있어 직접 찾는다
+            m_tutorialOverlay = FindAnyObjectByType<TutorialOverlay>(FindObjectsInactive.Include);
+
             // 매 판 자동판매는 OFF로 시작
             m_autoSellLowGrade = false;
 
             // 게임씬: 풀 초기화 후 매니저들은 각자 Start에서 등록됨
             StartCoroutine(DelayedInitializeManagers());
             if (m_resultPanel != null) m_resultPanel.gameObject.SetActive(false);
+            if (m_tutorialOverlay != null) m_tutorialOverlay.BeginIfNeeded();
         }
     }
 
     void OnMainSceneLoaded()
     {
+        // 판에서 쌓인 미션 진행도를 저장하고, 자정을 넘겼으면 오늘 자로 갱신한다
+        if (m_dailyMissionManager != null)
+        {
+            m_dailyMissionManager.Flush();
+            m_dailyMissionManager.RefreshDay();
+        }
+
+        m_tutorialOverlay = null;
+
         // 게임씬 전용 매니저 참조를 해제 (다음 게임씬 진입 시 다시 등록됨)
         m_mobManager = null;
         m_regionManager = null;
@@ -325,6 +351,7 @@ public class GManager : MonoBehaviour
         GameAudioManager.Play(GameAudioManager.Sfx.Defeat);
         m_gameOver = true;
         Time.timeScale = 0f;
+        if (m_tutorialOverlay != null) m_tutorialOverlay.Abort(); // 결과 패널을 가리지 않도록
         int currentWave = m_mobManager != null ? m_mobManager.CurrentWave : 1;
         RecordRunResult(currentWave);
         if (m_resultPanel != null)
@@ -333,9 +360,36 @@ public class GManager : MonoBehaviour
         }
     }
 
+    // ── 도감 · 일일 미션 · 튜토리얼 진행 알림 ──
+
+    /// <summary>플레이어가 유닛을 실제로 소환했을 때 호출합니다 (에디터 테스트 소환은 제외).</summary>
+    public void NotifyUnitSummoned(EntityType.TYPE classType, RarityType.TYPE rarity)
+    {
+        if (m_collectionManager != null) m_collectionManager.TryDiscover(classType, rarity);
+        if (m_dailyMissionManager != null) m_dailyMissionManager.NotifySummon();
+        if (m_tutorialOverlay != null) m_tutorialOverlay.NotifySummonPerformed();
+    }
+
+    /// <summary>새 웨이브에 진입했을 때 MobManager가 호출합니다.</summary>
+    public void NotifyWaveReached(int wave)
+    {
+        if (m_dailyMissionManager != null) m_dailyMissionManager.NotifyWaveReached(wave);
+    }
+
+    /// <summary>보스를 제한시간 안에 처치했을 때 MobManager가 호출합니다.</summary>
+    public void NotifyBossDefeated()
+    {
+        if (m_dailyMissionManager != null) m_dailyMissionManager.NotifyBossDefeated();
+    }
+
     // 도달 웨이브 기록 + 무한모드면 리더보드에 제출
     void RecordRunResult(int wave)
     {
+        if (m_dailyMissionManager != null)
+        {
+            m_dailyMissionManager.NotifyWaveReached(wave);
+            m_dailyMissionManager.Flush(); // 판이 끝났으니 모아 둔 진행도를 디스크에 쓴다
+        }
         if (m_playerProgress != null) m_playerProgress.RecordHighestWave(wave);
         if (GameModeSettings.IsEndless)
         {
@@ -350,6 +404,7 @@ public class GManager : MonoBehaviour
         GameAudioManager.Play(GameAudioManager.Sfx.Victory);
         m_gameOver = true;
         Time.timeScale = 0f;
+        if (m_tutorialOverlay != null) m_tutorialOverlay.Abort(); // 결과 패널을 가리지 않도록
         int currentWave = m_mobManager != null ? m_mobManager.CurrentWave : 1;
         RecordRunResult(currentWave);
         if (m_resultPanel != null)

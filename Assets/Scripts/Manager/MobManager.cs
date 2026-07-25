@@ -206,6 +206,7 @@ public class MobManager : MonoBehaviour
 
             bool isBossWave = (m_currentWave % 10 == 0);
             UpdateWaveText();
+            if (GManager.Instance != null) GManager.Instance.NotifyWaveReached(m_currentWave);
 
             if (isBossWave)
             {
@@ -247,6 +248,7 @@ public class MobManager : MonoBehaviour
 
 
                 Debug.Log($"Boss Wave {m_currentWave} cleared! Waiting for next wave...");
+                if (GManager.Instance != null) GManager.Instance.NotifyBossDefeated();
 
                 // 무한 모드에서는 클리어 없이 계속 진행합니다.
                 if (!GameModeSettings.IsEndless && m_currentWave >= maxWave)

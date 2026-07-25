@@ -22,6 +22,21 @@ public class GameBalanceData : ScriptableObject
     [SerializeField] int m_researchBaseCost = 50;
     [SerializeField] float m_rareSummonBonusPerLevel = 0.1f;
 
+    [Header("Collection")]
+    [Tooltip("도감에 유닛을 처음 등록할 때 주는 크리스탈. 순서: 일반/고급/정예/전설/신화/태초")]
+    [SerializeField] int[] m_collectionRewards = { 0, 5, 15, 40, 150, 500 };
+
+    [Header("Daily Missions")]
+    [SerializeField] int m_missionSummonGoal = 30;
+    [SerializeField] int m_missionWaveGoal = 10;
+    [SerializeField] int m_missionBossGoal = 1;
+    [Tooltip("미션 보상 크리스탈. 순서: 소환/웨이브/보스")]
+    [SerializeField] int[] m_missionRewards = { 20, 30, 50 };
+
+    [Header("Attendance")]
+    [Tooltip("출석 1~7일차 보상 크리스탈")]
+    [SerializeField] int[] m_attendanceRewards = { 10, 10, 20, 20, 30, 30, 100 };
+
     [Header("Combat")]
     [SerializeField] float m_attackInterval = 1f;
 
@@ -76,6 +91,24 @@ public class GameBalanceData : ScriptableObject
     {
         float scaled = baseHp * (m_bossHpBaseMultiplier + Mathf.Max(0, wave - 1) * m_bossHpGrowthPerWave);
         return Mathf.Max(1, Mathf.RoundToInt(scaled));
+    }
+
+    public int MissionSummonGoal => Mathf.Max(1, m_missionSummonGoal);
+    public int MissionWaveGoal => Mathf.Max(1, m_missionWaveGoal);
+    public int MissionBossGoal => Mathf.Max(1, m_missionBossGoal);
+
+    /// <summary>도감에 처음 등록할 때 주는 크리스탈. 배열이 비어 있으면 0입니다.</summary>
+    public int GetCollectionReward(RarityType.TYPE rarity) => ReadReward(m_collectionRewards, (int)rarity);
+
+    public int GetMissionReward(int missionIndex) => ReadReward(m_missionRewards, missionIndex);
+
+    /// <summary>출석 일차(1~7)의 보상 크리스탈.</summary>
+    public int GetAttendanceReward(int day) => ReadReward(m_attendanceRewards, day - 1);
+
+    static int ReadReward(int[] table, int index)
+    {
+        if (table == null || index < 0 || index >= table.Length) return 0;
+        return Mathf.Max(0, table[index]);
     }
 
     public int GetCrystalReward(int reachedWave) => Mathf.Max(0, reachedWave) * m_crystalPerReachedWave;

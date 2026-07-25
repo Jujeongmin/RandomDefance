@@ -1,0 +1,246 @@
+#if UNITY_EDITOR
+using System.Linq;
+using TMPro;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.UI;
+
+/// <summary>
+/// 씬을 구성하는 에디터 툴들이 공유하는 디자인 토큰과 UI 생성 헬퍼.
+/// 브랜드 색·스프라이트·폰트의 단일 출처입니다. 새 에디터 툴은 이 클래스를 쓰세요.
+/// </summary>
+public static class BrandUI
+{
+    public const int UiLayer = 5;
+
+    public const string ButtonAtlasPath = "Assets/Down/Universal Stylized UI/Atlases/Complete_Stylized_UI_elements_buttons.png";
+    public const string FontPath = "Assets/GData/Fonts/Paperlogy-9Black SDF.asset";
+    public const string CharacterDir = "Assets/GData/Image/Character";
+
+    // 아틀라스 스프라이트 이름
+    public const string GoldSquare = "Complete_Stylized_UI_elements_buttons_36";
+    public const string NavyPill = "Complete_Stylized_UI_elements_buttons_37";
+    public const string WhitePill = "Complete_Stylized_UI_elements_buttons_55"; // 순백 라운드 사각 — 틴트로 원하는 색을 낸다
+    public const string GoldFlat = "Complete_Stylized_UI_elements_buttons_53";  // 평평한 골드 — 작은 버튼용
+
+    // 브랜드 팔레트
+    public static readonly Color GoldButtonLabel = new Color(0.11f, 0.08f, 0.30f, 1f);
+    public static readonly Color NavyButtonLabel = new Color(0.96f, 0.90f, 0.78f, 1f);
+    public static readonly Color CreamText = new Color(0.96f, 0.90f, 0.78f, 1f);
+    public static readonly Color PanelNavy = new Color(0.045f, 0.04f, 0.115f, 0.96f);  // 페이지 패널 배경
+    public static readonly Color CardNavy = new Color(0.06f, 0.055f, 0.14f, 1f);       // 설정/확률 카드
+    public static readonly Color SlotNavy = new Color(0.10f, 0.09f, 0.20f, 1f);        // 카드 안의 작은 칸
+    public static readonly Color BarNavy = new Color(0.05f, 0.05f, 0.12f, 0.92f);      // 재화 바
+    public static readonly Color ModalDim = new Color(0f, 0f, 0f, 0.72f);              // 모달 뒤 딤
+    public static readonly Color DangerRed = new Color(0.55f, 0.16f, 0.18f, 1f);       // 데이터 초기화
+    public static readonly Color BadgeRed = new Color(0.90f, 0.22f, 0.24f, 1f);
+
+    // ---- 에셋 로드 ----
+
+    public static Sprite LoadAtlasSprite(string spriteName)
+    {
+        Sprite sprite = AssetDatabase.LoadAllAssetsAtPath(ButtonAtlasPath).OfType<Sprite>()
+            .FirstOrDefault(s => s.name == spriteName);
+        if (sprite == null)
+            throw new System.InvalidOperationException($"버튼 아틀라스에서 '{spriteName}'를 찾지 못했습니다: {ButtonAtlasPath}");
+        return sprite;
+    }
+
+    public static TMP_FontAsset LoadFont() => AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontPath);
+
+    // ---- 계층 헬퍼 ----
+
+    public static T Ensure<T>(GameObject go) where T : Component
+    {
+        T component = go.GetComponent<T>();
+        return component != null ? component : go.AddComponent<T>();
+    }
+
+    /// <summary>이름이 같은 자식이 있으면 재사용하고, 없으면 만듭니다. 툴을 여러 번 돌려도 안전합니다.</summary>
+    public static RectTransform EnsureChild(Transform parent, string name)
+    {
+        Transform existing = parent.Find(name);
+        if (existing != null) return (RectTransform)existing;
+
+        GameObject go = new GameObject(name, typeof(RectTransform)) { layer = UiLayer };
+        RectTransform rect = (RectTransform)go.transform;
+        rect.SetParent(parent, false);
+        Stretch(rect);
+        return rect;
+    }
+
+    public static void RemoveChild(Transform parent, string name)
+    {
+        Transform existing = parent.Find(name);
+        if (existing != null) Object.DestroyImmediate(existing.gameObject);
+    }
+
+    public static void Stretch(RectTransform rect)
+    {
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+        rect.localScale = Vector3.one;
+    }
+
+    /// <summary>앵커를 0~1 비율로 잡고 네 변에 여백(px)을 둡니다.</summary>
+    public static void Anchor(RectTransform rect, Vector2 min, Vector2 max, float inset = 0f)
+    {
+        rect.anchorMin = min;
+        rect.anchorMax = max;
+        rect.offsetMin = new Vector2(inset, inset);
+        rect.offsetMax = new Vector2(-inset, -inset);
+        rect.localScale = Vector3.one;
+    }
+
+    public static RectTransform FindDeep(Transform root, string name)
+    {
+        foreach (RectTransform rect in root.GetComponentsInChildren<RectTransform>(true))
+            if (rect.name == name) return rect;
+        return null;
+    }
+
+    // ---- 스타일 ----
+
+    /// <summary>패널·카드류 Image에 라운드 스프라이트와 틴트를 입힙니다.</summary>
+    public static Image StylePanel(RectTransform rect, Sprite sprite, Color tint, float pixelsPerUnitMultiplier)
+    {
+        Image image = Ensure<Image>(rect.gameObject);
+        image.sprite = sprite;
+        image.type = Image.Type.Sliced;
+        image.pixelsPerUnitMultiplier = pixelsPerUnitMultiplier;
+        image.color = tint;
+        return image;
+    }
+
+    public static void StyleButton(Button button, Sprite sprite, float pixelsPerUnitMultiplier, Color labelColor)
+    {
+        if (button == null || sprite == null) return;
+
+        Image image = button.GetComponent<Image>();
+        if (image == null) return;
+
+        image.sprite = sprite;
+        image.type = Image.Type.Sliced;
+        image.pixelsPerUnitMultiplier = pixelsPerUnitMultiplier;
+        image.color = Color.white;
+        button.targetGraphic = image;
+
+        ColorBlock colors = button.colors;
+        colors.normalColor = Color.white;
+        colors.highlightedColor = Color.white;
+        colors.pressedColor = new Color(0.82f, 0.82f, 0.86f, 1f);
+        colors.selectedColor = Color.white;
+        colors.disabledColor = new Color(0.6f, 0.6f, 0.6f, 0.5f);
+        button.colors = colors;
+
+        TextMeshProUGUI label = button.GetComponentInChildren<TextMeshProUGUI>(true);
+        if (label != null) label.color = labelColor;
+    }
+
+    // ---- 생성 ----
+
+    public static TextMeshProUGUI MakeText(Transform parent, string name, float fontSize, Color color,
+        TextAlignmentOptions alignment = TextAlignmentOptions.Center)
+    {
+        RectTransform rect = EnsureChild(parent, name);
+        TextMeshProUGUI text = Ensure<TextMeshProUGUI>(rect.gameObject);
+        TMP_FontAsset font = LoadFont();
+        if (font != null) text.font = font;
+        text.fontSize = fontSize;
+        text.alignment = alignment;
+        text.color = color;
+        text.raycastTarget = false;
+        return text;
+    }
+
+    /// <summary>스프라이트 배경 + 가운데 라벨을 가진 버튼을 만듭니다.</summary>
+    public static Button MakeButton(Transform parent, string name, Sprite sprite, float ppu,
+        Color labelColor, float fontSize)
+    {
+        RectTransform rect = EnsureChild(parent, name);
+        Image image = Ensure<Image>(rect.gameObject);
+        image.raycastTarget = true;
+        Button button = Ensure<Button>(rect.gameObject);
+
+        TextMeshProUGUI label = MakeText(rect, "Text", fontSize, labelColor);
+        Stretch((RectTransform)label.transform);
+
+        StyleButton(button, sprite, ppu, labelColor);
+        return button;
+    }
+
+    public static Image MakeImage(Transform parent, string name, Color color, bool raycast = false)
+    {
+        RectTransform rect = EnsureChild(parent, name);
+        Image image = Ensure<Image>(rect.gameObject);
+        image.color = color;
+        image.raycastTarget = raycast;
+        image.sprite = null;
+        image.type = Image.Type.Simple;
+        return image;
+    }
+
+    /// <summary>세로로 쌓는 컨테이너. 자식 높이는 LayoutElement.preferredHeight로 지정합니다.</summary>
+    public static VerticalLayoutGroup MakeColumn(RectTransform rect, RectOffset padding, float spacing)
+    {
+        VerticalLayoutGroup group = Ensure<VerticalLayoutGroup>(rect.gameObject);
+        group.padding = padding;
+        group.spacing = spacing;
+        group.childAlignment = TextAnchor.UpperCenter;
+        group.childControlWidth = true;
+        group.childControlHeight = true;
+        group.childForceExpandWidth = true;
+        group.childForceExpandHeight = false;
+        return group;
+    }
+
+    public static HorizontalLayoutGroup MakeRow(RectTransform rect, RectOffset padding, float spacing)
+    {
+        HorizontalLayoutGroup group = Ensure<HorizontalLayoutGroup>(rect.gameObject);
+        group.padding = padding;
+        group.spacing = spacing;
+        group.childAlignment = TextAnchor.MiddleCenter;
+        group.childControlWidth = true;
+        group.childControlHeight = true;
+        group.childForceExpandWidth = true;
+        group.childForceExpandHeight = true;
+        return group;
+    }
+
+    public static LayoutElement SetHeight(Component target, float preferredHeight)
+    {
+        LayoutElement element = Ensure<LayoutElement>(target.gameObject);
+        element.preferredHeight = preferredHeight;
+        element.flexibleHeight = 0f;
+        return element;
+    }
+
+    /// <summary>CanvasScaler의 기준 해상도. 없으면 프로젝트 기본값(720×1280).</summary>
+    public static Vector2 ReferenceResolution(Canvas canvas)
+    {
+        CanvasScaler scaler = canvas != null ? canvas.GetComponent<CanvasScaler>() : null;
+        return scaler != null && scaler.referenceResolution.x > 0f ? scaler.referenceResolution : new Vector2(720f, 1280f);
+    }
+
+    /// <summary>SerializedObject로 private [SerializeField]에 값을 넣습니다.</summary>
+    public static void SetRef(SerializedObject so, string propertyPath, Object value)
+    {
+        SerializedProperty property = so.FindProperty(propertyPath);
+        if (property == null)
+            throw new System.InvalidOperationException($"직렬화 프로퍼티를 찾지 못했습니다: {propertyPath}");
+        property.objectReferenceValue = value;
+    }
+
+    public static void SetRefArray(SerializedObject so, string propertyPath, params Object[] values)
+    {
+        SerializedProperty property = so.FindProperty(propertyPath);
+        if (property == null)
+            throw new System.InvalidOperationException($"직렬화 프로퍼티를 찾지 못했습니다: {propertyPath}");
+        property.arraySize = values.Length;
+        for (int i = 0; i < values.Length; i++)
+            property.GetArrayElementAtIndex(i).objectReferenceValue = values[i];
+    }
+}
+#endif
