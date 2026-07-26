@@ -203,6 +203,14 @@ public static class RetentionUIBuilder
         Button close = BrandUI.MakeButton(card, "Close", goldFlat, 1.5f, BrandUI.GoldButtonLabel, 30f);
         BrandUI.SetHeight(close, 76f);
 
+        // EnsureChild는 재사용 시 순서를 바로잡지 않으므로, VerticalLayoutGroup이 의도한
+        // 순서로 쌓이도록 매번 인덱스를 명시적으로 고정합니다.
+        title.rectTransform.SetSiblingIndex(0);
+        count.rectTransform.SetSiblingIndex(1);
+        scrollArea.SetSiblingIndex(2);
+        hint.rectTransform.SetSiblingIndex(3);
+        close.transform.SetSiblingIndex(4);
+
         CollectionPanel panel = BrandUI.Ensure<CollectionPanel>(root.gameObject);
         SerializedObject so = new SerializedObject(panel);
         BrandUI.SetRef(so, "m_bgButton", background);
@@ -281,6 +289,13 @@ public static class RetentionUIBuilder
         Button close = BrandUI.MakeButton(card, "Close", goldFlat, 1.5f, BrandUI.GoldButtonLabel, 28f);
         BrandUI.SetHeight(close, 68f);
 
+        // 재실행으로 자식 순서가 흐트러지지 않도록 매번 인덱스를 명시적으로 고정합니다.
+        title.rectTransform.SetSiblingIndex(0);
+        row.SetSiblingIndex(1);
+        claim.transform.SetSiblingIndex(2);
+        status.rectTransform.SetSiblingIndex(3);
+        close.transform.SetSiblingIndex(4);
+
         AttendancePanel panel = BrandUI.Ensure<AttendancePanel>(root.gameObject);
         SerializedObject so = new SerializedObject(panel);
         BrandUI.SetRef(so, "m_bgButton", background);
@@ -332,6 +347,8 @@ public static class RetentionUIBuilder
         for (int i = 0; i < DailyMissionManager.MissionCount; i++)
         {
             RectTransform questRow = BrandUI.EnsureChild(card, $"Quest_{i}");
+            // 재실행으로 자식 순서가 흐트러지지 않도록 Title(0) 다음 자리에 고정합니다.
+            questRow.SetSiblingIndex(i + 1);
             BrandUI.StylePanel(questRow, whitePill, BrandUI.SlotNavy, 1.2f).raycastTarget = false;
             BrandUI.MakeRow(questRow, new RectOffset(16, 12, 8, 8), 10f);
             BrandUI.SetHeight(questRow, 96f);
@@ -362,6 +379,11 @@ public static class RetentionUIBuilder
 
         Button close = BrandUI.MakeButton(card, "Close", goldFlat, 1.5f, BrandUI.GoldButtonLabel, 28f);
         BrandUI.SetHeight(close, 68f);
+
+        // Title은 위에서, Quest_N은 루프 안에서 이미 고정했으므로 Status/Close만 마저 고정합니다.
+        title.rectTransform.SetSiblingIndex(0);
+        status.rectTransform.SetSiblingIndex(DailyMissionManager.MissionCount + 1);
+        close.transform.SetSiblingIndex(DailyMissionManager.MissionCount + 2);
 
         QuestPanel panel = BrandUI.Ensure<QuestPanel>(root.gameObject);
         SerializedObject so = new SerializedObject(panel);
@@ -450,6 +472,11 @@ public static class RetentionUIBuilder
         TextMeshProUGUI label = button.GetComponentInChildren<TextMeshProUGUI>(true);
         if (label == null) return;
         label.fontSize = 18f;
+        // 영어 라벨("COLLECTION" 등)은 84x19 상자보다 넓어 줄바꿈되어 잘려나가므로
+        // 자동 축소를 켭니다. 한글 라벨은 원래 폭에 맞으므로 최대값은 그대로 18f.
+        label.enableAutoSizing = true;
+        label.fontSizeMin = 11f;
+        label.fontSizeMax = 18f;
         label.alignment = TextAlignmentOptions.Center;
         BrandUI.Anchor((RectTransform)label.transform, new Vector2(0.02f, 0.06f), new Vector2(0.98f, 0.30f));
     }
@@ -498,6 +525,9 @@ public static class RetentionUIBuilder
             Image dim = BrandUI.MakeImage(root, dimNames[i], BrandUI.ModalDim, raycast: true);
             RectTransform rect = (RectTransform)dim.transform;
             rect.anchorMin = rect.anchorMax = rect.pivot = Vector2.zero;
+            // EnsureChild는 새로 만든 자식을 맨 뒤에 붙이므로, 재실행 때마다 딤이 Bubble보다
+            // 뒤로 밀려나 말풍선을 덮어버립니다. 인덱스를 고정해 딤 4장이 항상 0~3번을 차지하게 합니다.
+            rect.SetSiblingIndex(i);
             TutorialDimClick click = BrandUI.Ensure<TutorialDimClick>(dim.gameObject);
             SerializedObject clickSo = new SerializedObject(click);
             BrandUI.SetRef(clickSo, "m_overlay", overlay);

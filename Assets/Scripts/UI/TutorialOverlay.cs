@@ -56,11 +56,21 @@ public class TutorialOverlay : MonoBehaviour
         if (m_skipButton != null) m_skipButton.onClick.AddListener(Finish);
     }
 
-    /// <summary>아직 튜토리얼을 보지 않았다면 시작합니다. 이미 봤으면 아무 일도 하지 않습니다.</summary>
+    /// <summary>
+    /// 아직 튜토리얼을 보지 않았다면 시작합니다. 이미 봤으면 꺼서 돌려줍니다.
+    /// Awake에서는 절대 SetActive(false)를 부르지 않습니다 — 처음 활성화되는 순간 바로
+    /// 꺼버려서 오버레이가 뜨지 않던 예전 버그의 원인이었습니다. 대신 이 조기 반환 경로가
+    /// 유일한 무조건 hide 지점입니다: 여기서 끄지 않으면 완료한 플레이어라도 씬에
+    /// 직렬화된 활성 상태 그대로 남아, 레이캐스트를 먹는 딤 4장이 게임 씬을 막아버립니다.
+    /// </summary>
     public void BeginIfNeeded()
     {
         PlayerProgressManager progress = GManager.Instance != null ? GManager.Instance.IsProgress : null;
-        if (progress == null || progress.TutorialDone) return;
+        if (progress == null || progress.TutorialDone)
+        {
+            gameObject.SetActive(false);
+            return;
+        }
 
         BuildSteps();
         m_running = true;

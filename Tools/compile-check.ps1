@@ -12,10 +12,23 @@
 # Library/ScriptAssemblies. That directory holds Unity's last successful build,
 # which can be stale - if a referenced project changed since Unity last
 # compiled, run this on that project first, or open the editor.
+#
+# -Player: the generated .csproj for a runtime assembly still carries
+# UNITY_EDITOR (and the UnityEditor* references) because that's what Unity's
+# own editor-hosted compile uses. Compiling with those in place means editor-only
+# API (UnityEditor.*) under `#if UNITY_EDITOR` in runtime scripts compiles clean
+# here even though it would break the actual player build, where UNITY_EDITOR
+# is never defined. Pass -Player to strip every UNITY_EDITOR* define and every
+# UnityEditor*-named reference before compiling, mirroring an actual player
+# build. Use it as an extra pass alongside the default invocation, not instead
+# of it - it writes its output to a distinct file (suffixed .Player) so it can
+# never be mistaken for, or overwrite, the editor-defined pass.
+#   powershell -ExecutionPolicy Bypass -File Tools/compile-check.ps1 -Player
 
 param(
     [string]$Project = 'Assembly-CSharp.csproj',
-    [string]$Csc = 'C:\Program Files\Unity\Hub\Editor\6000.4.0f1\Editor\Data\DotNetSdkRoslyn\csc.dll'
+    [string]$Csc = 'C:\Program Files\Unity\Hub\Editor\6000.4.0f1\Editor\Data\DotNetSdkRoslyn\csc.dll',
+    [switch]$Player
 )
 
 $ErrorActionPreference = 'Stop'
@@ -29,6 +42,10 @@ if (-not (Test-Path $Csc)) { throw "Roslyn not found: $Csc. Pass -Csc with your 
 
 $defines = ($xml.Project.PropertyGroup | Where-Object { $_.DefineConstants } |
     Select-Object -First 1).DefineConstants
+if ($Player) {
+    # Mirror an actual player build: UNITY_EDITOR is never defined outside the editor.
+    $defines = ($defines -split ';' | Where-Object { $_ -notlike 'UNITY_EDITOR*' }) -join ';'
+}
 $sources = @($xml.Project.ItemGroup.Compile | Where-Object { $_.Include } |
     ForEach-Object { Join-Path $root $_.Include })
 
@@ -55,6 +72,8 @@ $refs = [System.Collections.Generic.List[string]]::new()
 # HintPaths to the Unity install are absolute; package ones are repo-relative.
 foreach ($r in $xml.Project.ItemGroup.Reference) {
     if (-not $r.HintPath) { continue }
+    # Mirror an actual player build: none of the UnityEditor* assemblies ship with it.
+    if ($Player -and ([System.IO.Path]::GetFileName($r.HintPath) -like 'UnityEditor*')) { continue }
     if ([System.IO.Path]::IsPathRooted($r.HintPath)) { $refs.Add($r.HintPath) }
     else { $refs.Add((Join-Path $root $r.HintPath)) }
 }
@@ -83,6 +102,9 @@ $missingProjects = [System.Collections.Generic.List[string]]::new()
 foreach ($p in $xml.Project.ItemGroup.ProjectReference) {
     if (-not $p.Include) { continue }
     $name = [System.IO.Path]::GetFileNameWithoutExtension($p.Include) + '.dll'
+    # Mirror an actual player build: UnityEditor*-named assemblies never ship with it,
+    # including ones reached through a <ProjectReference> rather than a HintPath.
+    if ($Player -and ($name -like 'UnityEditor*')) { continue }
     $fresh = Join-Path $outDir $name
     $unity = Join-Path $scriptAssemblies $name
     if (Test-Path $fresh) { $refs.Add($fresh) }
@@ -92,8 +114,13 @@ foreach ($p in $xml.Project.ItemGroup.ProjectReference) {
 
 if (-not $sources) { throw "No <Compile Include> entries in $Project." }
 
-$out = Join-Path $outDir ([System.IO.Path]::GetFileNameWithoutExtension($Project) + '.dll')
-$rsp = Join-Path $outDir ([System.IO.Path]::GetFileNameWithoutExtension($Project) + '.rsp')
+$outBaseName = [System.IO.Path]::GetFileNameWithoutExtension($Project)
+# Distinct output name for the -Player pass so it never collides with, or gets
+# mistaken for, the editor-defined pass's assembly (and so a ProjectReference
+# lookup below can't accidentally pick up a player-stripped DLL).
+if ($Player) { $outBaseName += '.Player' }
+$out = Join-Path $outDir ($outBaseName + '.dll')
+$rsp = Join-Path $outDir ($outBaseName + '.rsp')
 if (Test-Path $out) { Remove-Item $out -Force }
 
 # Every path is quoted: reference paths run through "C:\Program Files\...".
