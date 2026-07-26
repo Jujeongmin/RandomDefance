@@ -1,6 +1,5 @@
 using TMPro;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
@@ -55,7 +54,6 @@ public class TutorialOverlay : MonoBehaviour
     {
         if (m_canvas == null) m_canvas = GetComponentInParent<Canvas>();
         if (m_skipButton != null) m_skipButton.onClick.AddListener(Finish);
-        gameObject.SetActive(false);
     }
 
     /// <summary>아직 튜토리얼을 보지 않았다면 시작합니다. 이미 봤으면 아무 일도 하지 않습니다.</summary>
@@ -264,16 +262,5 @@ public class TutorialOverlay : MonoBehaviour
 
         result = new Rect(min, max - min);
         return result.width > 0f && result.height > 0f;
-    }
-}
-
-/// <summary>딤 이미지의 탭을 오버레이로 전달합니다. Button을 쓰면 색 전환이 끼어들어 별도 컴포넌트로 둡니다.</summary>
-public class TutorialDimClick : MonoBehaviour, IPointerClickHandler
-{
-    [SerializeField] TutorialOverlay m_overlay;
-
-    public void OnPointerClick(PointerEventData eventData)
-    {
-        if (m_overlay != null) m_overlay.OnDimClicked();
     }
 }

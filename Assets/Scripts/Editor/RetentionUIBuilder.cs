@@ -88,12 +88,30 @@ public static class RetentionUIBuilder
         BrandUI.MakeColumn(card, new RectOffset(18, 18, 22, 22), 12f);
 
         TextMeshProUGUI title = BrandUI.MakeText(card, "Title", 44f, BrandUI.CreamText);
-        BrandUI.SetHeight(title, 56f);
+        BrandUI.SetHeight(title, 90f);
         TextMeshProUGUI count = BrandUI.MakeText(card, "Count", 34f, BrandUI.CreamText);
-        BrandUI.SetHeight(count, 42f);
+        BrandUI.SetHeight(count, 70f);
 
-        // 격자: 3열 × 6행. 카드 안쪽 너비에서 칸 크기를 역산합니다.
-        RectTransform grid = BrandUI.EnsureChild(card, "Grid");
+        // 격자: 3열 × 6행. 6행 전체 높이는 카드보다 커질 수 있으므로 스크롤 영역에 담습니다.
+        // 이전 버전(스크롤 없이 Card 바로 아래 Grid)의 잔여물이 있으면 정리합니다.
+        BrandUI.RemoveChild(card, "Grid");
+        RectTransform scrollArea = BrandUI.EnsureChild(card, "GridScroll");
+        LayoutElement scrollElement = BrandUI.Ensure<LayoutElement>(scrollArea.gameObject);
+        scrollElement.preferredHeight = 0f;
+        scrollElement.flexibleHeight = 1f; // 카드 안에서 남는 공간을 모두 차지
+        Image scrollBg = BrandUI.Ensure<Image>(scrollArea.gameObject);
+        scrollBg.color = Color.clear;
+        BrandUI.Ensure<RectMask2D>(scrollArea.gameObject);
+        ScrollRect scrollRect = BrandUI.Ensure<ScrollRect>(scrollArea.gameObject);
+        scrollRect.horizontal = false;
+        scrollRect.vertical = true;
+        scrollRect.movementType = ScrollRect.MovementType.Clamped;
+
+        RectTransform grid = BrandUI.EnsureChild(scrollArea, "Grid");
+        grid.anchorMin = new Vector2(0f, 1f);
+        grid.anchorMax = new Vector2(1f, 1f);
+        grid.pivot = new Vector2(0.5f, 1f);
+        grid.anchoredPosition = Vector2.zero;
         float cardWidth = reference.x * (0.96f - 0.04f);
         float innerWidth = cardWidth - 36f;
         const float spacing = 8f;
@@ -105,7 +123,9 @@ public static class RetentionUIBuilder
         layout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         layout.constraintCount = 3;
         layout.childAlignment = TextAnchor.UpperCenter;
-        BrandUI.SetHeight(grid, cellHeight * 6f + spacing * 5f);
+        ContentSizeFitter fitter = BrandUI.Ensure<ContentSizeFitter>(grid.gameObject);
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        scrollRect.content = grid;
 
         var icons = new Image[CollectionManager.TotalEntries];
         var labels = new TextMeshProUGUI[CollectionManager.TotalEntries];
@@ -361,6 +381,9 @@ public static class RetentionUIBuilder
         string[] dimNames = { "Dim_Top", "Dim_Bottom", "Dim_Left", "Dim_Right" };
         for (int i = 0; i < dimNames.Length; i++)
         {
+            // TutorialDimClick이 TutorialOverlay.cs 안에 있던 시절 만들어진 딤에는 스크립트 참조가 끊긴
+            // 컴포넌트가 남아 GetComponent로 잡히지 않습니다. 통째로 지우고 새로 만듭니다.
+            BrandUI.RemoveChild(root, dimNames[i]);
             Image dim = BrandUI.MakeImage(root, dimNames[i], BrandUI.ModalDim, raycast: true);
             RectTransform rect = (RectTransform)dim.transform;
             rect.anchorMin = rect.anchorMax = rect.pivot = Vector2.zero;
