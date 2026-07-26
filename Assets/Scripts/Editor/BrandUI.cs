@@ -14,6 +14,7 @@ public static class BrandUI
     public const int UiLayer = 5;
 
     public const string ButtonAtlasPath = "Assets/Down/Universal Stylized UI/Atlases/Complete_Stylized_UI_elements_buttons.png";
+    public const string IconAtlasPath = "Assets/Down/Universal Stylized UI/Atlases/Complete_Stylized_UI_elements_icons_2.png";
     public const string FontPath = "Assets/GData/Fonts/Paperlogy-9Black SDF.asset";
     public const string CharacterDir = "Assets/GData/Image/Character";
 
@@ -22,6 +23,14 @@ public static class BrandUI
     public const string NavyPill = "Complete_Stylized_UI_elements_buttons_37";
     public const string WhitePill = "Complete_Stylized_UI_elements_buttons_55"; // 순백 라운드 사각 — 틴트로 원하는 색을 낸다
     public const string GoldFlat = "Complete_Stylized_UI_elements_buttons_53";  // 평평한 골드 — 작은 버튼용
+
+    // 아이콘 아틀라스는 9열 × 5행이고 인덱스는 행*9 + 열이다.
+    // 달력·책·두루마리·트로피는 이 아틀라스에 없어 뜻이 가장 가까운 것을 골랐다.
+    public const int IconCheck = 38;    // 초록 체크 — 출석
+    public const int IconList = 11;     // 3줄 목록 — 퀘스트
+    public const int IconCards = 23;    // 카드 더미 — 도감
+    public const int IconDiamond = 40;  // 다이아 — 확률
+    public const int IconCrown = 33;    // 금관 — 랭킹
 
     // 브랜드 팔레트
     public static readonly Color GoldButtonLabel = new Color(0.11f, 0.08f, 0.30f, 1f);
@@ -43,6 +52,17 @@ public static class BrandUI
             .FirstOrDefault(s => s.name == spriteName);
         if (sprite == null)
             throw new System.InvalidOperationException($"버튼 아틀라스에서 '{spriteName}'를 찾지 못했습니다: {ButtonAtlasPath}");
+        return sprite;
+    }
+
+    /// <summary>아이콘 아틀라스에서 인덱스로 스프라이트를 꺼냅니다.</summary>
+    public static Sprite LoadIconSprite(int index)
+    {
+        string spriteName = $"Complete_Stylized_UI_elements_icons_2_{index}";
+        Sprite sprite = AssetDatabase.LoadAllAssetsAtPath(IconAtlasPath).OfType<Sprite>()
+            .FirstOrDefault(s => s.name == spriteName);
+        if (sprite == null)
+            throw new System.InvalidOperationException($"아이콘 아틀라스에서 '{spriteName}'를 찾지 못했습니다: {IconAtlasPath}");
         return sprite;
     }
 
