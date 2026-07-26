@@ -166,12 +166,11 @@ public class DailyMissionManager : MonoBehaviour
         return reward;
     }
 
-    /// <summary>수령 대기 중인 보상이 하나라도 있는지 (메인화면 배지용).</summary>
-    public bool HasClaimable
+    /// <summary>완료했지만 아직 수령하지 않은 퀘스트가 있는지 (퀘스트 버튼 배지용).</summary>
+    public bool HasClaimableMission
     {
         get
         {
-            if (CanClaimAttendance) return true;
             for (int i = 0; i < MissionCount; i++)
                 if (CanClaim(i)) return true;
             return false;
