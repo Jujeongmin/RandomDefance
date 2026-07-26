@@ -11,13 +11,12 @@ public class MobHealthBar : MonoBehaviour
     const float Height = 0.28f;
     const float YOffset = -1.05f;
 
-    // 몹과 같은 층에 둔다. 몹은 MobManager가 빈 오브젝트에 SpriteRenderer를 붙여 만들 뿐
-    // sortingOrder를 지정하지 않으므로 기본값 0이다. 체력바도 0에 두되, 같은 order 안에서는
-    // 계층 순서가 뒤인 쪽이 위로 그려지므로 몹의 자식인 체력바가 몹 위에 온다.
-    //
-    // 이전 값은 200이었는데 이는 UICanvas와 같은 값이라, 소환 텍스트·설정 패널·튜토리얼
-    // 오버레이까지 전부 뚫고 올라왔다.
-    const int SortOrder = 0;
+    // sortingOrder는 일부러 건드리지 않습니다. 몹도 MobManager가 SpriteRenderer만 붙이고
+    // 지정하지 않아 기본값 0이므로, 그냥 두는 것이 몹과 같은 층에 놓는 방법입니다.
+    // 같은 order 안에서는 계층 순서가 뒤인 쪽이 위로 그려지고 체력바는 몹의 자식이라
+    // 몹 위에 옵니다. 배경보다 나중에 만드는 채움 막대가 배경 위에 오는 것도 같은 이유입니다.
+    // 예전에는 200으로 올려 뒀는데, 그 값이 UICanvas와 같아서 소환 텍스트·설정 패널·
+    // 튜토리얼 오버레이까지 전부 뚫고 올라왔습니다.
 
     static Sprite s_centerSprite;
     static Sprite s_leftSprite;
@@ -42,24 +41,23 @@ public class MobHealthBar : MonoBehaviour
         transform.localPosition = new Vector3(0f, YOffset, 0f);
         transform.localRotation = Quaternion.identity;
 
-        SpriteRenderer bg = CreatePart("BG", s_centerSprite, new Color(0f, 0f, 0f, 0.65f), SortOrder);
+        SpriteRenderer bg = CreatePart("BG", s_centerSprite, new Color(0f, 0f, 0f, 0.65f));
         bg.transform.localPosition = Vector3.zero;
         bg.transform.localScale = new Vector3(Width, Height, 1f);
 
-        m_fillRenderer = CreatePart("Fill", s_leftSprite, Color.green, SortOrder + 1);
+        m_fillRenderer = CreatePart("Fill", s_leftSprite, Color.green);
         m_fill = m_fillRenderer.transform;
         m_fill.localPosition = new Vector3(-Width * 0.5f, 0f, 0f);
         m_fill.localScale = new Vector3(Width, Height * 0.72f, 1f);
     }
 
-    SpriteRenderer CreatePart(string name, Sprite sprite, Color color, int order)
+    SpriteRenderer CreatePart(string name, Sprite sprite, Color color)
     {
         GameObject go = new GameObject(name);
         go.transform.SetParent(transform, false);
         SpriteRenderer renderer = go.AddComponent<SpriteRenderer>();
         renderer.sprite = sprite;
         renderer.color = color;
-        renderer.sortingOrder = order;
         return renderer;
     }
 
