@@ -10,7 +10,12 @@ public class MobHealthBar : MonoBehaviour
     const float Width = 1.5f;
     const float Height = 0.28f;
     const float YOffset = -1.05f;
-    const int SortOrder = 200;
+
+    // 게임씬 sorting order 대역: 바닥 -10~-9, 유닛·몹·이펙트 0~101,
+    // 지역 외곽선과 스왑 화살표 90~111, UICanvas 200.
+    // 체력바는 지역 선 위에 떠야 읽히지만 UI 아래여야 한다 — 200은 캔버스와 같은 값이라
+    // 소환 텍스트·설정 패널·튜토리얼 오버레이까지 전부 뚫고 올라왔다.
+    const int SortOrder = 120;
 
     static Sprite s_centerSprite;
     static Sprite s_leftSprite;
