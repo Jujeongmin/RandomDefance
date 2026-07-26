@@ -24,6 +24,10 @@ public static class RetentionUIBuilder
     static readonly string[] ClassAssetNames = { "Wizard", "Archer", "Warrior" };
     const int IdlePoseFrame = 1; // 정면 idle 포즈
 
+    // 메뉴 버튼 크기 — 아이콘형은 정사각, 기존 확률·랭킹은 가로형 그대로.
+    static readonly Vector2 IconButtonSize = new Vector2(88f, 88f);
+    static readonly Vector2 WideButtonSize = new Vector2(128f, 48f);
+
     [MenuItem("Tools/Random Defense/Build Collection and Daily UI")]
     public static void BuildMainSceneUI()
     {
@@ -34,32 +38,70 @@ public static class RetentionUIBuilder
         Canvas canvas = Object.FindAnyObjectByType<Canvas>();
         if (canvas == null) throw new System.InvalidOperationException("MainScene에서 Canvas를 찾지 못했습니다.");
 
+        // 메뉴 버튼은 캐러셀의 가운데 페이지 안에 들어가야 상점·연구소에서 따라다니지 않는다.
+        RectTransform mainPage = BrandUI.FindDeep(canvas.transform, "MainPage");
+        if (mainPage == null)
+            throw new System.InvalidOperationException("MainScene에서 MainPage를 찾지 못했습니다. 메뉴 버튼을 붙일 곳입니다.");
+
         SerializedObject managerSo = new SerializedObject(manager);
         Button odds = managerSo.FindProperty("m_oddsButton").objectReferenceValue as Button;
         if (odds == null)
-            throw new System.InvalidOperationException("MainMenuManager의 확률 버튼이 비어 있습니다. 버튼 배치의 기준으로 필요합니다.");
+            throw new System.InvalidOperationException("MainMenuManager의 확률 버튼이 비어 있습니다. 새 버튼을 복제할 원본으로 필요합니다.");
+        Button ranking = managerSo.FindProperty("m_rankingButton").objectReferenceValue as Button;
+        if (ranking == null)
+            throw new System.InvalidOperationException("MainMenuManager의 랭킹 버튼이 비어 있습니다.");
 
-        CollectionPanel collection = BuildCollectionPanel(canvas);
-        DailyPanel daily = BuildDailyPanel(canvas);
+        CollectionPanel collectionPanel = BuildCollectionPanel(canvas);
+        AttendancePanel attendancePanel = BuildAttendancePanel(canvas);
+        QuestPanel questPanel = BuildQuestPanel(canvas);
 
-        Button collectionButton = CloneMenuButton(odds, "CollectionButton", 1);
-        Button dailyButton = CloneMenuButton(odds, "DailyButton", 2);
-        GameObject badge = BuildBadge(dailyButton);
+        // 출석과 퀘스트로 갈라지기 전의 통합 패널이 남아 있으면 지운다.
+        BrandUI.RemoveChild(canvas.transform, "DailyPanel");
+
+        Button collectionButton = EnsureMenuButton(canvas, odds, "CollectionButton");
+        Button attendanceButton = EnsureMenuButton(canvas, odds, "AttendanceButton", "DailyButton");
+        Button questButton = EnsureMenuButton(canvas, odds, "QuestButton");
+
+        StyleIconButton(attendanceButton, BrandUI.IconCheck);
+        StyleIconButton(questButton, BrandUI.IconList);
+        StyleIconButton(collectionButton, BrandUI.IconCards);
+        StyleWideButton(odds, BrandUI.IconDiamond);
+        StyleWideButton(ranking, BrandUI.IconCrown);
+
+        // 출석은 좌상단에서 설정 기어와 대칭을 이루고, 퀘스트·도감은 기어 아래로 쌓인다.
+        // 기어 하단이 -80이므로 8px 띄워 -88부터 시작한다.
+        PlaceMenuButton(attendanceButton, mainPage, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(10f, -10f), IconButtonSize);
+        PlaceMenuButton(questButton, mainPage, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-10f, -88f), IconButtonSize);
+        PlaceMenuButton(collectionButton, mainPage, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-10f, -184f), IconButtonSize);
+        PlaceMenuButton(odds, mainPage, Vector2.zero, Vector2.zero, new Vector2(16f, 230f), WideButtonSize);
+        PlaceMenuButton(ranking, mainPage, Vector2.zero, Vector2.zero, new Vector2(16f, 286f), WideButtonSize);
+
+        GameObject attendanceBadge = BuildBadge(attendanceButton);
+        GameObject questBadge = BuildBadge(questButton);
+
+        TitleScreenPanel titleScreen = Object.FindAnyObjectByType<TitleScreenPanel>(FindObjectsInactive.Include);
+        if (titleScreen == null)
+            throw new System.InvalidOperationException("MainScene에서 TitleScreenPanel을 찾지 못했습니다. 출석 팝업이 타이틀을 기다리려면 필요합니다.");
 
         BrandUI.SetRef(managerSo, "m_collectionButton", collectionButton);
-        BrandUI.SetRef(managerSo, "m_collectionPanel", collection);
-        BrandUI.SetRef(managerSo, "m_dailyButton", dailyButton);
-        BrandUI.SetRef(managerSo, "m_dailyPanel", daily);
-        BrandUI.SetRef(managerSo, "m_dailyBadge", badge);
+        BrandUI.SetRef(managerSo, "m_collectionPanel", collectionPanel);
+        BrandUI.SetRef(managerSo, "m_attendanceButton", attendanceButton);
+        BrandUI.SetRef(managerSo, "m_attendancePanel", attendancePanel);
+        BrandUI.SetRef(managerSo, "m_attendanceBadge", attendanceBadge);
+        BrandUI.SetRef(managerSo, "m_questButton", questButton);
+        BrandUI.SetRef(managerSo, "m_questPanel", questPanel);
+        BrandUI.SetRef(managerSo, "m_questBadge", questBadge);
+        BrandUI.SetRef(managerSo, "m_titleScreen", titleScreen);
         managerSo.ApplyModifiedPropertiesWithoutUndo();
 
-        collection.gameObject.SetActive(false);
-        daily.gameObject.SetActive(false);
+        collectionPanel.gameObject.SetActive(false);
+        attendancePanel.gameObject.SetActive(false);
+        questPanel.gameObject.SetActive(false);
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
         AssetDatabase.SaveAssets();
-        Debug.Log("[RetentionUIBuilder] 메인화면 완료 — 도감 패널 / 일일 보상 패널 / 버튼 2개 / 알림 배지");
+        Debug.Log("[RetentionUIBuilder] 메인화면 완료 — 도감 / 출석 / 퀘스트 패널, 메뉴 버튼 5개를 MainPage로 이동");
     }
 
     // ---- 유닛 도감 ----
@@ -185,15 +227,84 @@ public static class RetentionUIBuilder
             .FirstOrDefault(s => s.name == $"{className}_{rarity}_{IdlePoseFrame}");
     }
 
-    // ---- 일일 보상 ----
+    // ---- 출석 보상 ----
 
-    static DailyPanel BuildDailyPanel(Canvas canvas)
+    static AttendancePanel BuildAttendancePanel(Canvas canvas)
+    {
+        Sprite whitePill = BrandUI.LoadAtlasSprite(BrandUI.WhitePill);
+        Sprite goldFlat = BrandUI.LoadAtlasSprite(BrandUI.GoldFlat);
+
+        RectTransform root = BrandUI.EnsureChild(canvas.transform, "AttendancePanel");
+        root.SetAsLastSibling();
+        BrandUI.Stretch(root);
+        Image dim = BrandUI.Ensure<Image>(root.gameObject);
+        dim.sprite = null;
+        dim.type = Image.Type.Simple;
+        dim.color = BrandUI.ModalDim;
+        dim.raycastTarget = true;
+        Button background = BrandUI.Ensure<Button>(root.gameObject);
+        background.transition = Selectable.Transition.None;
+        background.targetGraphic = dim;
+
+        // 출석만 담으므로 카드가 화면 가운데 절반이면 충분하다.
+        RectTransform card = BrandUI.EnsureChild(root, "Card");
+        BrandUI.Anchor(card, new Vector2(0.05f, 0.30f), new Vector2(0.95f, 0.72f));
+        BrandUI.StylePanel(card, whitePill, BrandUI.CardNavy, 0.5f).raycastTarget = true;
+        BrandUI.MakeColumn(card, new RectOffset(20, 20, 22, 22), 12f);
+
+        TextMeshProUGUI title = BrandUI.MakeText(card, "Title", 44f, BrandUI.CreamText);
+        BrandUI.SetHeight(title, 62f);
+
+        RectTransform row = BrandUI.EnsureChild(card, "Row");
+        BrandUI.MakeRow(row, new RectOffset(0, 0, 0, 0), 6f);
+        BrandUI.SetHeight(row, 110f);
+
+        var cells = new Image[DailyMissionManager.AttendanceCycle];
+        var labels = new TextMeshProUGUI[DailyMissionManager.AttendanceCycle];
+        for (int day = 1; day <= DailyMissionManager.AttendanceCycle; day++)
+        {
+            RectTransform cell = BrandUI.EnsureChild(row, $"Day_{day}");
+            Image cellImage = BrandUI.StylePanel(cell, whitePill, BrandUI.SlotNavy, 1.6f);
+            cellImage.raycastTarget = false;
+            TextMeshProUGUI label = BrandUI.MakeText(cell, "Label", 18f, BrandUI.CreamText);
+            BrandUI.Stretch((RectTransform)label.transform);
+            cells[day - 1] = cellImage;
+            labels[day - 1] = label;
+        }
+
+        Button claim = BrandUI.MakeButton(card, "Claim", goldFlat, 1.5f, BrandUI.GoldButtonLabel, 28f);
+        BrandUI.SetHeight(claim, 76f);
+
+        TextMeshProUGUI status = BrandUI.MakeText(card, "Status", 24f, BrandUI.CreamText);
+        BrandUI.SetHeight(status, 34f);
+
+        Button close = BrandUI.MakeButton(card, "Close", goldFlat, 1.5f, BrandUI.GoldButtonLabel, 28f);
+        BrandUI.SetHeight(close, 68f);
+
+        AttendancePanel panel = BrandUI.Ensure<AttendancePanel>(root.gameObject);
+        SerializedObject so = new SerializedObject(panel);
+        BrandUI.SetRef(so, "m_bgButton", background);
+        BrandUI.SetRef(so, "m_closeButton", close);
+        BrandUI.SetRef(so, "m_titleText", title);
+        BrandUI.SetRef(so, "m_closeText", close.GetComponentInChildren<TextMeshProUGUI>(true));
+        BrandUI.SetRefArray(so, "m_cells", cells);
+        BrandUI.SetRefArray(so, "m_labels", labels);
+        BrandUI.SetRef(so, "m_claimButton", claim);
+        BrandUI.SetRef(so, "m_claimText", claim.GetComponentInChildren<TextMeshProUGUI>(true));
+        BrandUI.SetRef(so, "m_statusText", status);
+        so.ApplyModifiedPropertiesWithoutUndo();
+        return panel;
+    }
+
+    // ---- 일일 퀘스트 ----
+
+    static QuestPanel BuildQuestPanel(Canvas canvas)
     {
         Sprite whitePill = BrandUI.LoadAtlasSprite(BrandUI.WhitePill);
         Sprite navyPill = BrandUI.LoadAtlasSprite(BrandUI.NavyPill);
         Sprite goldFlat = BrandUI.LoadAtlasSprite(BrandUI.GoldFlat);
 
-        RectTransform root = BrandUI.EnsureChild(canvas.transform, "DailyPanel");
+        RectTransform root = BrandUI.EnsureChild(canvas.transform, "QuestPanel");
         root.SetAsLastSibling();
         BrandUI.Stretch(root);
         Image dim = BrandUI.Ensure<Image>(root.gameObject);
@@ -206,54 +317,26 @@ public static class RetentionUIBuilder
         background.targetGraphic = dim;
 
         RectTransform card = BrandUI.EnsureChild(root, "Card");
-        BrandUI.Anchor(card, new Vector2(0.05f, 0.12f), new Vector2(0.95f, 0.90f));
+        BrandUI.Anchor(card, new Vector2(0.05f, 0.26f), new Vector2(0.95f, 0.76f));
         BrandUI.StylePanel(card, whitePill, BrandUI.CardNavy, 0.5f).raycastTarget = true;
-        BrandUI.MakeColumn(card, new RectOffset(20, 20, 22, 22), 10f);
+        BrandUI.MakeColumn(card, new RectOffset(20, 20, 22, 22), 12f);
 
         TextMeshProUGUI title = BrandUI.MakeText(card, "Title", 44f, BrandUI.CreamText);
-        BrandUI.SetHeight(title, 56f);
+        BrandUI.SetHeight(title, 62f);
 
-        // 출석 7칸
-        TextMeshProUGUI attendanceTitle = BrandUI.MakeText(card, "AttendanceTitle", 28f, BrandUI.CreamText);
-        BrandUI.SetHeight(attendanceTitle, 38f);
-
-        RectTransform attendanceRow = BrandUI.EnsureChild(card, "AttendanceRow");
-        BrandUI.MakeRow(attendanceRow, new RectOffset(0, 0, 0, 0), 6f);
-        BrandUI.SetHeight(attendanceRow, 96f);
-
-        var cells = new Image[DailyMissionManager.AttendanceCycle];
-        var cellLabels = new TextMeshProUGUI[DailyMissionManager.AttendanceCycle];
-        for (int day = 1; day <= DailyMissionManager.AttendanceCycle; day++)
-        {
-            RectTransform cell = BrandUI.EnsureChild(attendanceRow, $"Day_{day}");
-            Image cellImage = BrandUI.StylePanel(cell, whitePill, BrandUI.SlotNavy, 1.6f);
-            cellImage.raycastTarget = false;
-            TextMeshProUGUI label = BrandUI.MakeText(cell, "Label", 18f, BrandUI.CreamText);
-            BrandUI.Stretch((RectTransform)label.transform);
-            cells[day - 1] = cellImage;
-            cellLabels[day - 1] = label;
-        }
-
-        Button attendanceClaim = BrandUI.MakeButton(card, "AttendanceClaim", goldFlat, 1.5f, BrandUI.GoldButtonLabel, 26f);
-        BrandUI.SetHeight(attendanceClaim, 66f);
-
-        // 미션 3줄
-        TextMeshProUGUI missionTitle = BrandUI.MakeText(card, "MissionTitle", 28f, BrandUI.CreamText);
-        BrandUI.SetHeight(missionTitle, 38f);
-
-        var missionTitles = new TextMeshProUGUI[DailyMissionManager.MissionCount];
-        var missionProgress = new TextMeshProUGUI[DailyMissionManager.MissionCount];
-        var missionButtons = new Button[DailyMissionManager.MissionCount];
-        var missionButtonTexts = new TextMeshProUGUI[DailyMissionManager.MissionCount];
+        var questTitles = new TextMeshProUGUI[DailyMissionManager.MissionCount];
+        var progressTexts = new TextMeshProUGUI[DailyMissionManager.MissionCount];
+        var claimButtons = new Button[DailyMissionManager.MissionCount];
+        var claimTexts = new TextMeshProUGUI[DailyMissionManager.MissionCount];
 
         for (int i = 0; i < DailyMissionManager.MissionCount; i++)
         {
-            RectTransform row = BrandUI.EnsureChild(card, $"Mission_{i}");
-            BrandUI.StylePanel(row, whitePill, BrandUI.SlotNavy, 1.2f).raycastTarget = false;
-            BrandUI.MakeRow(row, new RectOffset(16, 12, 8, 8), 10f);
-            BrandUI.SetHeight(row, 96f);
+            RectTransform questRow = BrandUI.EnsureChild(card, $"Quest_{i}");
+            BrandUI.StylePanel(questRow, whitePill, BrandUI.SlotNavy, 1.2f).raycastTarget = false;
+            BrandUI.MakeRow(questRow, new RectOffset(16, 12, 8, 8), 10f);
+            BrandUI.SetHeight(questRow, 96f);
 
-            RectTransform info = BrandUI.EnsureChild(row, "Info");
+            RectTransform info = BrandUI.EnsureChild(questRow, "Info");
             BrandUI.MakeColumn(info, new RectOffset(0, 0, 0, 0), 2f);
             LayoutElement infoElement = BrandUI.Ensure<LayoutElement>(info.gameObject);
             infoElement.flexibleWidth = 1f;
@@ -263,84 +346,39 @@ public static class RetentionUIBuilder
             TextMeshProUGUI rowProgress = BrandUI.MakeText(info, "Progress", 22f, BrandUI.CreamText, TextAlignmentOptions.Left);
             BrandUI.SetHeight(rowProgress, 30f);
 
-            Button claim = BrandUI.MakeButton(row, "Claim", navyPill, 1f, BrandUI.NavyButtonLabel, 22f);
+            Button claim = BrandUI.MakeButton(questRow, "Claim", navyPill, 1f, BrandUI.NavyButtonLabel, 22f);
             LayoutElement claimElement = BrandUI.Ensure<LayoutElement>(claim.gameObject);
             claimElement.preferredWidth = 170f;
             claimElement.flexibleWidth = 0f;
 
-            missionTitles[i] = rowTitle;
-            missionProgress[i] = rowProgress;
-            missionButtons[i] = claim;
-            missionButtonTexts[i] = claim.GetComponentInChildren<TextMeshProUGUI>(true);
+            questTitles[i] = rowTitle;
+            progressTexts[i] = rowProgress;
+            claimButtons[i] = claim;
+            claimTexts[i] = claim.GetComponentInChildren<TextMeshProUGUI>(true);
         }
 
         TextMeshProUGUI status = BrandUI.MakeText(card, "Status", 24f, BrandUI.CreamText);
         BrandUI.SetHeight(status, 34f);
 
-        Button close = BrandUI.MakeButton(card, "Close", goldFlat, 1.5f, BrandUI.GoldButtonLabel, 30f);
-        BrandUI.SetHeight(close, 76f);
+        Button close = BrandUI.MakeButton(card, "Close", goldFlat, 1.5f, BrandUI.GoldButtonLabel, 28f);
+        BrandUI.SetHeight(close, 68f);
 
-        DailyPanel panel = BrandUI.Ensure<DailyPanel>(root.gameObject);
+        QuestPanel panel = BrandUI.Ensure<QuestPanel>(root.gameObject);
         SerializedObject so = new SerializedObject(panel);
         BrandUI.SetRef(so, "m_bgButton", background);
         BrandUI.SetRef(so, "m_closeButton", close);
         BrandUI.SetRef(so, "m_titleText", title);
         BrandUI.SetRef(so, "m_closeText", close.GetComponentInChildren<TextMeshProUGUI>(true));
-        BrandUI.SetRef(so, "m_attendanceTitle", attendanceTitle);
-        BrandUI.SetRefArray(so, "m_attendanceCells", cells);
-        BrandUI.SetRefArray(so, "m_attendanceLabels", cellLabels);
-        BrandUI.SetRef(so, "m_attendanceClaimButton", attendanceClaim);
-        BrandUI.SetRef(so, "m_attendanceClaimText", attendanceClaim.GetComponentInChildren<TextMeshProUGUI>(true));
-        BrandUI.SetRef(so, "m_missionTitle", missionTitle);
-        BrandUI.SetRefArray(so, "m_missionTitles", missionTitles);
-        BrandUI.SetRefArray(so, "m_missionProgressTexts", missionProgress);
-        BrandUI.SetRefArray(so, "m_missionClaimButtons", missionButtons);
-        BrandUI.SetRefArray(so, "m_missionClaimTexts", missionButtonTexts);
+        BrandUI.SetRefArray(so, "m_questTitles", questTitles);
+        BrandUI.SetRefArray(so, "m_progressTexts", progressTexts);
+        BrandUI.SetRefArray(so, "m_claimButtons", claimButtons);
+        BrandUI.SetRefArray(so, "m_claimTexts", claimTexts);
         BrandUI.SetRef(so, "m_statusText", status);
         so.ApplyModifiedPropertiesWithoutUndo();
         return panel;
     }
 
     // ---- 메인화면 버튼 ----
-
-    /// <summary>
-    /// 확률 버튼을 복제해 같은 스타일·크기의 메뉴 버튼을 만듭니다.
-    /// 부모에 레이아웃 그룹이 있으면 자리 배치는 그룹에 맡기고, 없으면 아래로 한 칸씩 내려 놓습니다.
-    /// </summary>
-    static Button CloneMenuButton(Button source, string name, int slotBelowSource)
-    {
-        RectTransform parent = (RectTransform)source.transform.parent;
-        Transform existing = parent.Find(name);
-
-        GameObject go;
-        if (existing != null)
-        {
-            go = existing.gameObject;
-        }
-        else
-        {
-            go = Object.Instantiate(source.gameObject, parent);
-            go.name = name;
-        }
-
-        Button button = go.GetComponent<Button>();
-        button.onClick = new Button.ButtonClickedEvent(); // 복제된 리스너 제거 — 코드에서 다시 연결합니다
-
-        if (parent.GetComponent<LayoutGroup>() == null)
-        {
-            RectTransform sourceRect = (RectTransform)source.transform;
-            RectTransform rect = (RectTransform)go.transform;
-            rect.anchorMin = sourceRect.anchorMin;
-            rect.anchorMax = sourceRect.anchorMax;
-            rect.pivot = sourceRect.pivot;
-            rect.sizeDelta = sourceRect.sizeDelta;
-            rect.localScale = sourceRect.localScale;
-            float step = sourceRect.rect.height + 14f;
-            rect.anchoredPosition = sourceRect.anchoredPosition - new Vector2(0f, step * slotBelowSource);
-        }
-
-        return button;
-    }
 
     /// <summary>버튼 오른쪽 위에 붙는 빨간 알림 점.</summary>
     static GameObject BuildBadge(Button owner)
@@ -355,6 +393,79 @@ public static class RetentionUIBuilder
         Sprite whitePill = BrandUI.LoadAtlasSprite(BrandUI.WhitePill);
         BrandUI.StylePanel(badge, whitePill, BrandUI.BadgeRed, 6f).raycastTarget = false;
         return badge.gameObject;
+    }
+
+    /// <summary>
+    /// 메뉴 버튼을 확보합니다. 이미 있으면 그대로 쓰고, 없으면 확률 버튼을 복제해 만듭니다.
+    /// legacyName은 이전 버전이 쓰던 이름으로, 그 오브젝트가 남아 있으면 새 이름으로 바꿔 재사용합니다.
+    /// </summary>
+    static Button EnsureMenuButton(Canvas canvas, Button template, string name, string legacyName = null)
+    {
+        RectTransform existing = BrandUI.FindDeep(canvas.transform, name);
+        if (existing == null && !string.IsNullOrEmpty(legacyName))
+        {
+            existing = BrandUI.FindDeep(canvas.transform, legacyName);
+            if (existing != null) existing.gameObject.name = name;
+        }
+
+        if (existing != null)
+        {
+            Button found = existing.GetComponent<Button>();
+            if (found == null)
+                throw new System.InvalidOperationException($"'{name}' 오브젝트에 Button 컴포넌트가 없습니다.");
+            return found;
+        }
+
+        GameObject clone = Object.Instantiate(template.gameObject, template.transform.parent);
+        clone.name = name;
+        Button button = clone.GetComponent<Button>();
+        button.onClick = new Button.ButtonClickedEvent(); // 복제된 리스너 제거 — MainMenuManager가 다시 연결합니다
+        return button;
+    }
+
+    /// <summary>
+    /// 메뉴 버튼을 MainPage 안으로 옮기고 좌표를 잡습니다.
+    /// 캐러셀 밖에 두면 상점·연구소 페이지에서도 따라다니므로 가운데 페이지의 자식으로 만듭니다.
+    /// </summary>
+    static void PlaceMenuButton(Button button, RectTransform mainPage, Vector2 anchor, Vector2 pivot,
+        Vector2 position, Vector2 size)
+    {
+        RectTransform rect = (RectTransform)button.transform;
+        rect.SetParent(mainPage, false);
+        rect.anchorMin = rect.anchorMax = anchor;
+        rect.pivot = pivot;
+        rect.anchoredPosition = position;
+        rect.sizeDelta = size;
+        rect.localScale = Vector3.one;
+    }
+
+    /// <summary>아이콘을 위, 라벨을 아래에 둔 정사각 메뉴 버튼으로 만듭니다.</summary>
+    static void StyleIconButton(Button button, int iconIndex)
+    {
+        Image icon = BrandUI.MakeImage(button.transform, "Icon", Color.white);
+        icon.sprite = BrandUI.LoadIconSprite(iconIndex);
+        icon.preserveAspect = true;
+        BrandUI.Anchor((RectTransform)icon.transform, new Vector2(0.18f, 0.34f), new Vector2(0.82f, 0.92f));
+
+        TextMeshProUGUI label = button.GetComponentInChildren<TextMeshProUGUI>(true);
+        if (label == null) return;
+        label.fontSize = 18f;
+        label.alignment = TextAlignmentOptions.Center;
+        BrandUI.Anchor((RectTransform)label.transform, new Vector2(0.02f, 0.06f), new Vector2(0.98f, 0.30f));
+    }
+
+    /// <summary>아이콘을 왼쪽, 라벨을 오른쪽에 둔 가로 메뉴 버튼으로 만듭니다.</summary>
+    static void StyleWideButton(Button button, int iconIndex)
+    {
+        Image icon = BrandUI.MakeImage(button.transform, "Icon", Color.white);
+        icon.sprite = BrandUI.LoadIconSprite(iconIndex);
+        icon.preserveAspect = true;
+        BrandUI.Anchor((RectTransform)icon.transform, new Vector2(0.05f, 0.16f), new Vector2(0.28f, 0.84f));
+
+        TextMeshProUGUI label = button.GetComponentInChildren<TextMeshProUGUI>(true);
+        if (label == null) return;
+        label.alignment = TextAlignmentOptions.Left;
+        BrandUI.Anchor((RectTransform)label.transform, new Vector2(0.33f, 0.05f), new Vector2(0.96f, 0.95f));
     }
 
     // ---- 튜토리얼 오버레이 ----
