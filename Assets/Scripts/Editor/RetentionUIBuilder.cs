@@ -68,9 +68,10 @@ public static class RetentionUIBuilder
         StyleWideButton(odds, BrandUI.IconDiamond);
         StyleWideButton(ranking, BrandUI.IconCrown);
 
-        // 출석은 좌상단에서 설정 기어와 대칭을 이루고, 퀘스트·도감은 기어 아래로 쌓인다.
-        // 기어 하단이 -80이므로 8px 띄워 -88부터 시작한다.
-        PlaceMenuButton(attendanceButton, mainPage, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(10f, -10f), IconButtonSize);
+        // 퀘스트·도감은 우상단 설정 기어 아래로 쌓인다. 기어 하단이 -80이라 8px 띄워 -88부터 시작한다.
+        // 출석은 왼쪽에서 퀘스트와 같은 높이에 둔다. 좌상단 구석은 크리스탈 보유 바(중앙 기준 x -230,
+        // 높이 -10~-60)가 이미 쓰고 있어 -10에 두면 겹친다.
+        PlaceMenuButton(attendanceButton, mainPage, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(10f, -88f), IconButtonSize);
         PlaceMenuButton(questButton, mainPage, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-10f, -88f), IconButtonSize);
         PlaceMenuButton(collectionButton, mainPage, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-10f, -184f), IconButtonSize);
         PlaceMenuButton(odds, mainPage, Vector2.zero, Vector2.zero, new Vector2(16f, 230f), WideButtonSize);
@@ -168,6 +169,11 @@ public static class RetentionUIBuilder
         ContentSizeFitter fitter = BrandUI.Ensure<ContentSizeFitter>(grid.gameObject);
         fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         scrollRect.content = grid;
+        // 기본 감도 1은 한 칸이 200px가 넘는 격자에서 거의 움직이지 않습니다.
+        // 휠 한 번에 반 칸쯤 넘어가게 잡고, 관성을 켜 손을 떼도 미끄러지게 합니다.
+        scrollRect.scrollSensitivity = cellHeight * 0.5f;
+        scrollRect.inertia = true;
+        scrollRect.decelerationRate = 0.135f;
 
         var icons = new Image[CollectionManager.TotalEntries];
         var labels = new TextMeshProUGUI[CollectionManager.TotalEntries];
@@ -254,34 +260,54 @@ public static class RetentionUIBuilder
         background.transition = Selectable.Transition.None;
         background.targetGraphic = dim;
 
-        // 출석만 담으므로 카드가 화면 가운데 절반이면 충분하다.
+        Vector2 reference = BrandUI.ReferenceResolution(canvas);
         RectTransform card = BrandUI.EnsureChild(root, "Card");
-        BrandUI.Anchor(card, new Vector2(0.05f, 0.30f), new Vector2(0.95f, 0.72f));
+        BrandUI.Anchor(card, new Vector2(0.05f, 0.26f), new Vector2(0.95f, 0.74f));
         BrandUI.StylePanel(card, whitePill, BrandUI.CardNavy, 0.5f).raycastTarget = true;
         BrandUI.MakeColumn(card, new RectOffset(20, 20, 22, 22), 12f);
 
         TextMeshProUGUI title = BrandUI.MakeText(card, "Title", 44f, BrandUI.CreamText);
         BrandUI.SetHeight(title, 62f);
 
-        RectTransform row = BrandUI.EnsureChild(card, "Row");
-        BrandUI.MakeRow(row, new RectOffset(0, 0, 0, 0), 6f);
-        BrandUI.SetHeight(row, 110f);
+        // 칸을 직접 눌러 수령하므로 손가락이 닿을 만큼 커야 합니다. 7칸을 한 줄에 늘어놓으면
+        // 한 칸이 90px대라 너무 좁아, 4열 두 줄로 나눠 칸을 두 배 가까이 키웁니다.
+        // 이전 버전의 가로 한 줄 배치와 별도 수령 버튼이 남아 있으면 정리합니다.
+        // 지우지 않으면 카드에 눌리지 않는 낡은 버튼이 그대로 남습니다.
+        BrandUI.RemoveChild(card, "Row");
+        BrandUI.RemoveChild(card, "Claim");
+        RectTransform grid = BrandUI.EnsureChild(card, "Grid");
+        const int columns = 4;
+        const float cellSpacing = 8f;
+        float cardWidth = reference.x * (0.95f - 0.05f);
+        float cellSize = (cardWidth - 40f - cellSpacing * (columns - 1)) / columns;
+        int rowCount = Mathf.CeilToInt(DailyMissionManager.AttendanceCycle / (float)columns);
+        GridLayoutGroup gridLayout = BrandUI.Ensure<GridLayoutGroup>(grid.gameObject);
+        gridLayout.cellSize = new Vector2(cellSize, cellSize);
+        gridLayout.spacing = new Vector2(cellSpacing, cellSpacing);
+        gridLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+        gridLayout.constraintCount = columns;
+        gridLayout.childAlignment = TextAnchor.UpperCenter;
+        BrandUI.SetHeight(grid, cellSize * rowCount + cellSpacing * (rowCount - 1));
 
         var cells = new Image[DailyMissionManager.AttendanceCycle];
         var labels = new TextMeshProUGUI[DailyMissionManager.AttendanceCycle];
+        var cellButtons = new Button[DailyMissionManager.AttendanceCycle];
         for (int day = 1; day <= DailyMissionManager.AttendanceCycle; day++)
         {
-            RectTransform cell = BrandUI.EnsureChild(row, $"Day_{day}");
+            RectTransform cell = BrandUI.EnsureChild(grid, $"Day_{day}");
             Image cellImage = BrandUI.StylePanel(cell, whitePill, BrandUI.SlotNavy, 1.6f);
-            cellImage.raycastTarget = false;
-            TextMeshProUGUI label = BrandUI.MakeText(cell, "Label", 18f, BrandUI.CreamText);
+            cellImage.raycastTarget = true; // 칸이 곧 버튼입니다
+            Button cellButton = BrandUI.Ensure<Button>(cell.gameObject);
+            cellButton.transition = Selectable.Transition.None; // 색은 AttendancePanel이 상태에 따라 직접 칠합니다
+            cellButton.targetGraphic = cellImage;
+
+            TextMeshProUGUI label = BrandUI.MakeText(cell, "Label", 22f, BrandUI.CreamText);
             BrandUI.Stretch((RectTransform)label.transform);
+
             cells[day - 1] = cellImage;
             labels[day - 1] = label;
+            cellButtons[day - 1] = cellButton;
         }
-
-        Button claim = BrandUI.MakeButton(card, "Claim", goldFlat, 1.5f, BrandUI.GoldButtonLabel, 28f);
-        BrandUI.SetHeight(claim, 76f);
 
         TextMeshProUGUI status = BrandUI.MakeText(card, "Status", 24f, BrandUI.CreamText);
         BrandUI.SetHeight(status, 34f);
@@ -291,10 +317,9 @@ public static class RetentionUIBuilder
 
         // 재실행으로 자식 순서가 흐트러지지 않도록 매번 인덱스를 명시적으로 고정합니다.
         title.rectTransform.SetSiblingIndex(0);
-        row.SetSiblingIndex(1);
-        claim.transform.SetSiblingIndex(2);
-        status.rectTransform.SetSiblingIndex(3);
-        close.transform.SetSiblingIndex(4);
+        grid.SetSiblingIndex(1);
+        status.rectTransform.SetSiblingIndex(2);
+        close.transform.SetSiblingIndex(3);
 
         AttendancePanel panel = BrandUI.Ensure<AttendancePanel>(root.gameObject);
         SerializedObject so = new SerializedObject(panel);
@@ -304,8 +329,7 @@ public static class RetentionUIBuilder
         BrandUI.SetRef(so, "m_closeText", close.GetComponentInChildren<TextMeshProUGUI>(true));
         BrandUI.SetRefArray(so, "m_cells", cells);
         BrandUI.SetRefArray(so, "m_labels", labels);
-        BrandUI.SetRef(so, "m_claimButton", claim);
-        BrandUI.SetRef(so, "m_claimText", claim.GetComponentInChildren<TextMeshProUGUI>(true));
+        BrandUI.SetRefArray(so, "m_cellButtons", cellButtons);
         BrandUI.SetRef(so, "m_statusText", status);
         so.ApplyModifiedPropertiesWithoutUndo();
         return panel;
@@ -573,10 +597,31 @@ public static class RetentionUIBuilder
 
         root.gameObject.SetActive(false); // 진입 시 GManager가 필요할 때만 켭니다
 
+        ReplayTutorialNextRun();
+
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
         AssetDatabase.SaveAssets();
         Debug.Log("[RetentionUIBuilder] 튜토리얼 오버레이 완료 — 딤 4장 / 말풍선 / 건너뛰기 / 단계 대상 3곳");
+    }
+
+    /// <summary>
+    /// 튜토리얼 완료 표시를 지워 다음 게임씬 진입 때 다시 뜨게 합니다.
+    /// 오버레이는 최초 1회만 뜨므로, 이걸 지우지 않으면 툴을 돌려도 확인할 방법이 없습니다.
+    /// 세이브의 나머지(크리스탈·연구·도감·출석)는 그대로 둡니다.
+    /// </summary>
+    static void ReplayTutorialNextRun()
+    {
+        string json = PlayerPrefs.GetString(PlayerProgressManager.SaveKey, string.Empty);
+        if (string.IsNullOrEmpty(json)) return; // 세이브가 없으면 어차피 처음부터 뜬다
+
+        PlayerProgressData data = JsonUtility.FromJson<PlayerProgressData>(json);
+        if (data == null || !data.tutorialDone) return;
+
+        data.tutorialDone = false;
+        PlayerPrefs.SetString(PlayerProgressManager.SaveKey, JsonUtility.ToJson(data));
+        PlayerPrefs.Save();
+        Debug.Log("[RetentionUIBuilder] 튜토리얼 완료 표시를 지웠습니다 — 다음 게임씬 진입 때 다시 뜹니다.");
     }
 
     static RectTransform RequireTarget(Canvas canvas, string name)

@@ -40,7 +40,8 @@ public class PlayerProgressData
 
 public class PlayerProgressManager : MonoBehaviour
 {
-    const string SaveKey = "RandomDefense.PlayerProgress.v1";
+    /// <summary>PlayerPrefs 키. 에디터 툴이 세이브를 직접 손볼 때도 씁니다.</summary>
+    public const string SaveKey = "RandomDefense.PlayerProgress.v1";
     PlayerProgressData m_data = new PlayerProgressData();
 
     public int Crystals => m_data.crystals;

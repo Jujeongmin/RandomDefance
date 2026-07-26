@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// 7일 순환 출석 보상 화면. 오늘 받을 칸만 금색으로 켜지고 하루에 한 번 수령합니다.
+/// 7일 순환 출석 보상 화면. 오늘 받을 칸만 금색으로 켜지고, 그 칸을 직접 눌러 하루에 한 번 수령합니다.
 /// 오늘 아직 받지 않았다면 MainMenuManager가 메인화면에 들어올 때 자동으로 띄웁니다.
 /// UI는 씬에 미리 배치돼 있고, 직렬화 참조로 연결됩니다.
 /// </summary>
@@ -27,8 +27,8 @@ public class AttendancePanel : MonoBehaviour
     [Tooltip("1~7일차 칸 배경")]
     [SerializeField] Image[] m_cells = new Image[DailyMissionManager.AttendanceCycle];
     [SerializeField] TextMeshProUGUI[] m_labels = new TextMeshProUGUI[DailyMissionManager.AttendanceCycle];
-    [SerializeField] Button m_claimButton;
-    [SerializeField] TextMeshProUGUI m_claimText;
+    [Tooltip("칸 자체가 수령 버튼입니다. 오늘 받을 칸만 눌립니다.")]
+    [SerializeField] Button[] m_cellButtons = new Button[DailyMissionManager.AttendanceCycle];
 
     [Header("Feedback")]
     [SerializeField] TextMeshProUGUI m_statusText;
@@ -55,7 +55,11 @@ public class AttendancePanel : MonoBehaviour
         m_wired = true;
         if (m_bgButton != null) m_bgButton.onClick.AddListener(Close);
         if (m_closeButton != null) m_closeButton.onClick.AddListener(Close);
-        if (m_claimButton != null) m_claimButton.onClick.AddListener(Claim);
+
+        // 어느 칸을 누르든 수령 대상은 오늘 칸 하나뿐이라 인자를 넘길 필요가 없습니다.
+        // 오늘이 아닌 칸은 Populate가 interactable을 꺼 둡니다.
+        foreach (Button cell in m_cellButtons)
+            if (cell != null) cell.onClick.AddListener(Claim);
     }
 
     void Claim()
@@ -101,18 +105,17 @@ public class AttendancePanel : MonoBehaviour
             if (slot < m_labels.Length && m_labels[slot] != null)
             {
                 int reward = daily != null ? daily.GetAttendanceReward(day) : 0;
-                m_labels[slot].text = english ? $"DAY {day}\n{reward:N0}" : $"{day}일차\n{reward:N0}";
-                m_labels[slot].color = isToday ? TodayLabel : CreamText;
-            }
-        }
+                string dayLine = english ? $"DAY {day}" : $"{day}일차";
+                // 오늘 칸에만 '받기'를 붙여, 누를 수 있는 칸이 어디인지 색 말고도 드러냅니다.
+                if (isClaimed) m_labels[slot].text = $"{dayLine}\n{(english ? "DONE" : "완료")}";
+                else if (isToday) m_labels[slot].text = $"{dayLine}\n{reward:N0}\n{(english ? "TAP" : "받기")}";
+                else m_labels[slot].text = $"{dayLine}\n{reward:N0}";
 
-        if (m_claimButton != null) m_claimButton.interactable = canClaim;
-        if (m_claimText != null)
-        {
-            m_claimText.text = canClaim
-                ? (english ? "CLAIM" : "받기")
-                : (english ? "COME BACK TOMORROW" : "내일 다시 오세요");
-            m_claimText.color = canClaim ? ReadyText : DoneText;
+                m_labels[slot].color = isToday ? TodayLabel : isClaimed ? DoneText : CreamText;
+            }
+
+            if (slot < m_cellButtons.Length && m_cellButtons[slot] != null)
+                m_cellButtons[slot].interactable = isToday;
         }
     }
 }
