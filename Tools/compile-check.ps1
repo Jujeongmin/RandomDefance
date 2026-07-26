@@ -37,6 +37,11 @@ $projectPath = Join-Path $root $Project
 
 if (-not (Test-Path $projectPath)) { throw "Project not found: $projectPath" }
 if (-not (Test-Path $Csc)) { throw "Roslyn not found: $Csc. Pass -Csc with your Unity version's path." }
+# Stripping UnityEditor from an editor assembly removes what it is built on, and
+# the resulting wall of errors would look like a code problem rather than misuse.
+if ($Player -and $Project -like '*Editor*') {
+    throw "-Player models a player build and cannot apply to $Project, which is an editor assembly."
+}
 
 [xml]$xml = Get-Content $projectPath
 
