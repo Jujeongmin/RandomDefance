@@ -15,6 +15,9 @@ public static class BrandUI
 
     public const string ButtonAtlasPath = "Assets/Down/Universal Stylized UI/Atlases/Complete_Stylized_UI_elements_buttons.png";
     public const string IconAtlasPath = "Assets/Down/Universal Stylized UI/Atlases/Complete_Stylized_UI_elements_icons_2.png";
+    public const string CompetitiveAtlasPath = "Assets/Down/Universal Stylized UI/Atlases/Complete_Stylized_UI_elements_competetive.png";
+    /// <summary>Kenney 보드게임 아이콘(CC0). 흰 단색이라 Image 틴트로 아무 색이나 입힐 수 있습니다.</summary>
+    public const string KenneyIconDir = "Assets/Down/kenney_board-game-icons/PNG/Double (128px)";
     public const string FontPath = "Assets/GData/Fonts/Paperlogy-9Black SDF.asset";
     public const string CharacterDir = "Assets/GData/Image/Character";
     /// <summary>재화 바가 쓰는 크리스탈 이미지. 보상이 크리스탈이면 같은 그림을 써서 무엇을 주는지 바로 읽히게 합니다.</summary>
@@ -38,6 +41,11 @@ public static class BrandUI
     public const int IconCards = 23;    // 카드 더미 — 도감
     public const int IconDiamond = 40;  // 다이아 — 확률
     public const int IconCrown = 33;    // 금관 — 랭킹
+
+    // 경쟁 아틀라스 — 리본 배너와 원형 아이콘 홀더
+    public const string CompCircleFilled = "Complete_Stylized_UI_elements_competetive_3";
+    public const string CompRibbonGreen = "Complete_Stylized_UI_elements_competetive_4";
+    public const string CompRibbonGold = "Complete_Stylized_UI_elements_competetive_6";
 
     // 브랜드 팔레트
     public static readonly Color GoldButtonLabel = new Color(0.11f, 0.08f, 0.30f, 1f);
@@ -70,6 +78,39 @@ public static class BrandUI
             .FirstOrDefault(s => s.name == spriteName);
         if (sprite == null)
             throw new System.InvalidOperationException($"아이콘 아틀라스에서 '{spriteName}'를 찾지 못했습니다: {IconAtlasPath}");
+        return sprite;
+    }
+
+    /// <summary>경쟁 아틀라스(리본·원형 홀더·트로피)에서 이름으로 스프라이트를 꺼냅니다.</summary>
+    public static Sprite LoadCompetitiveSprite(string spriteName)
+    {
+        Sprite sprite = AssetDatabase.LoadAllAssetsAtPath(CompetitiveAtlasPath).OfType<Sprite>()
+            .FirstOrDefault(s => s.name == spriteName);
+        if (sprite == null)
+            throw new System.InvalidOperationException($"경쟁 아틀라스에서 '{spriteName}'를 찾지 못했습니다: {CompetitiveAtlasPath}");
+        return sprite;
+    }
+
+    /// <summary>
+    /// Kenney 아이콘을 파일 이름으로 불러옵니다. 갓 임포트된 폴더는 텍스처 타입이
+    /// Sprite가 아닐 수 있어, 그 경우 임포트 설정을 고쳐서 다시 읽습니다.
+    /// </summary>
+    public static Sprite LoadKenneyIcon(string fileName)
+    {
+        string path = $"{KenneyIconDir}/{fileName}";
+        Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+        if (sprite == null)
+        {
+            TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (importer == null)
+                throw new System.InvalidOperationException(
+                    $"Kenney 아이콘을 찾지 못했습니다: {path}. kenney_board-game-icons 팩이 Assets/Down에 있어야 합니다.");
+            importer.textureType = TextureImporterType.Sprite;
+            importer.SaveAndReimport();
+            sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+        }
+        if (sprite == null)
+            throw new System.InvalidOperationException($"Kenney 아이콘을 Sprite로 임포트하지 못했습니다: {path}");
         return sprite;
     }
 

@@ -61,8 +61,17 @@ public class MainMenuCarouselUI : MonoBehaviour, IBeginDragHandler, IDragHandler
     public class ResearchBinding
     {
         public ResearchType type;
-        public TextMeshProUGUI info;
         public Button button;
+        public TextMeshProUGUI nameText;
+        [Tooltip("현재 효과 요약. 이름 옆의 작은 글씨")]
+        public TextMeshProUGUI effectText;
+        [Tooltip("게이지 위에 얹는 'Lv 3 / 20'")]
+        public TextMeshProUGUI levelText;
+        [Tooltip("레벨 비율만큼 차오르는 금색 바 (Image.type = Filled)")]
+        public Image gaugeFill;
+        [Tooltip("버튼 안 크리스탈 그림. 최대 레벨이면 숨긴다")]
+        public Image costIcon;
+        public TextMeshProUGUI costText;
     }
 
     const int ShopPage = 0;
@@ -264,14 +273,22 @@ public class MainMenuCarouselUI : MonoBehaviour, IBeginDragHandler, IDragHandler
         {
             foreach (ResearchBinding row in m_researchRows)
             {
-                if (row == null || row.info == null || row.button == null) continue;
+                if (row == null || row.button == null) continue;
                 int level = research.GetLevel(row.type);
                 int max = research.GetMaxLevel(row.type);
-                string cost = level >= max
-                    ? GameLanguage.Choose("최대 레벨", "MAX LEVEL")
-                    : GameLanguage.Choose($"비용 {research.GetCost(row.type):N0}", $"COST {research.GetCost(row.type):N0}");
-                row.info.text = $"{GetResearchName(row.type)}   Lv.{level}/{max}\n<size=70%>{GameLanguage.Choose("현재 증가", "CURRENT")}: {GetCurrentResearchEffect(row.type, level)}   |   {cost}</size>";
-                row.button.interactable = level < max && progress.Crystals >= research.GetCost(row.type);
+                bool maxed = level >= max;
+
+                if (row.nameText != null) row.nameText.text = GetResearchName(row.type);
+                if (row.effectText != null) row.effectText.text = GetCurrentResearchEffect(row.type, level);
+                if (row.levelText != null) row.levelText.text = $"Lv {level} / {max}";
+                if (row.gaugeFill != null) row.gaugeFill.fillAmount = max > 0 ? (float)level / max : 0f;
+
+                // 최대 레벨이면 가격 대신 MAX를 보여주고 크리스탈 그림은 치운다.
+                if (row.costText != null)
+                    row.costText.text = maxed ? GameLanguage.Choose("최대", "MAX") : $"{research.GetCost(row.type):N0}";
+                if (row.costIcon != null) row.costIcon.gameObject.SetActive(!maxed);
+
+                row.button.interactable = !maxed && progress.Crystals >= research.GetCost(row.type);
             }
         }
 
