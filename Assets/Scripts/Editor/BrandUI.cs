@@ -47,6 +47,10 @@ public static class BrandUI
     public const string CompRibbonGreen = "Complete_Stylized_UI_elements_competetive_4";
     public const string CompRibbonGold = "Complete_Stylized_UI_elements_competetive_6";
 
+    // 상점 페이지 아이콘
+    public const int IconPlay = 14;   // 재생 삼각형 — 보상 광고 시청
+    public const int IconNoAds = 19;  // 빨간 슬래시 — 광고 제거
+
     // 브랜드 팔레트
     public static readonly Color GoldButtonLabel = new Color(0.11f, 0.08f, 0.30f, 1f);
     public static readonly Color NavyButtonLabel = new Color(0.96f, 0.90f, 0.78f, 1f);
