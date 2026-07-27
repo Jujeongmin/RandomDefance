@@ -45,7 +45,6 @@ public static class ResearchPageBuilder
 
         Sprite navySquare = BrandUI.LoadAtlasSprite(BrandUI.NavySquare);
         Sprite goldSquare = BrandUI.LoadAtlasSprite(BrandUI.GoldSquare);
-        Sprite whitePill = BrandUI.LoadAtlasSprite(BrandUI.WhitePill);
         Sprite circle = BrandUI.LoadCompetitiveSprite(BrandUI.CompCircleFilled);
         Sprite ribbon = BrandUI.LoadCompetitiveSprite(BrandUI.CompRibbonGreen);
         Sprite crystal = BrandUI.LoadSprite(BrandUI.CrystalIconPath);
@@ -111,12 +110,17 @@ public static class ResearchPageBuilder
             TextMeshProUGUI effect = BrandUI.MakeText(row, "Effect", 16f, MutedText, TextAlignmentOptions.Left);
             BrandUI.Anchor((RectTransform)effect.transform, new Vector2(0.21f, 0.38f), new Vector2(0.70f, 0.58f));
 
+            // 게이지는 스프라이트 없는 민짜 사각형입니다. 알약 스프라이트를 Filled로 자르면
+            // 채움 끝이 타원을 따라 깎여 차오르는 모양이 둥글게 보입니다.
             RectTransform gaugeBack = BrandUI.EnsureChild(row, "Gauge");
             BrandUI.Anchor(gaugeBack, new Vector2(0.21f, 0.10f), new Vector2(0.70f, 0.32f));
-            BrandUI.StylePanel(gaugeBack, whitePill, GaugeBack, 3f).raycastTarget = false;
+            Image gaugeBackImage = BrandUI.Ensure<Image>(gaugeBack.gameObject);
+            gaugeBackImage.sprite = null; // 이전 실행이 알약 스프라이트를 넣어 뒀을 수 있다
+            gaugeBackImage.type = Image.Type.Simple;
+            gaugeBackImage.color = GaugeBack;
+            gaugeBackImage.raycastTarget = false;
 
             Image gaugeFill = BrandUI.MakeImage(gaugeBack, "Fill", GaugeGold);
-            gaugeFill.sprite = whitePill;
             gaugeFill.type = Image.Type.Filled;
             gaugeFill.fillMethod = Image.FillMethod.Horizontal;
             gaugeFill.fillOrigin = (int)Image.OriginHorizontal.Left;
