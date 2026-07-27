@@ -26,6 +26,11 @@ public static class BrandUI
     public const string WhitePill = "Complete_Stylized_UI_elements_buttons_55"; // 순백 라운드 사각 — 틴트로 원하는 색을 낸다
     public const string GoldFlat = "Complete_Stylized_UI_elements_buttons_53";  // 평평한 골드 — 작은 버튼용
 
+    // 베벨과 그림자가 들어간 큰 라운드 사각. 흰 알약을 틴트만 바꿔 쓰는 것과 달리 재질이 살아 있어,
+    // 상태를 색이 아니라 재질로 구분할 수 있다.
+    public const string GreenSquare = "Complete_Stylized_UI_elements_buttons_35";
+    public const string NavySquare = "Complete_Stylized_UI_elements_buttons_50";
+
     // 아이콘 아틀라스는 9열 × 5행이고 인덱스는 행*9 + 열이다.
     // 달력·책·두루마리·트로피는 이 아틀라스에 없어 뜻이 가장 가까운 것을 골랐다.
     public const int IconCheck = 38;    // 초록 체크 — 출석

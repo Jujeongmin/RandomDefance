@@ -245,7 +245,6 @@ public static class RetentionUIBuilder
 
     static AttendancePanel BuildAttendancePanel(Canvas canvas)
     {
-        Sprite whitePill = BrandUI.LoadAtlasSprite(BrandUI.WhitePill);
         Sprite goldFlat = BrandUI.LoadAtlasSprite(BrandUI.GoldFlat);
 
         RectTransform root = BrandUI.EnsureChild(canvas.transform, "AttendancePanel");
@@ -260,36 +259,55 @@ public static class RetentionUIBuilder
         background.transition = Selectable.Transition.None;
         background.targetGraphic = dim;
 
+        Sprite navySquare = BrandUI.LoadAtlasSprite(BrandUI.NavySquare);
+        Sprite goldSquare = BrandUI.LoadAtlasSprite(BrandUI.GoldSquare);
+        Sprite greenSquare = BrandUI.LoadAtlasSprite(BrandUI.GreenSquare);
+        Sprite crystal = BrandUI.LoadSprite(BrandUI.CrystalIconPath);
+
         Vector2 reference = BrandUI.ReferenceResolution(canvas);
         RectTransform card = BrandUI.EnsureChild(root, "Card");
-        BrandUI.Anchor(card, new Vector2(0.05f, 0.26f), new Vector2(0.95f, 0.74f));
-        BrandUI.StylePanel(card, whitePill, BrandUI.CardNavy, 0.5f).raycastTarget = true;
+        BrandUI.Anchor(card, new Vector2(0.05f, 0.20f), new Vector2(0.95f, 0.80f));
+        BrandUI.StylePanel(card, navySquare, Color.white, 0.35f).raycastTarget = true;
         BrandUI.MakeColumn(card, new RectOffset(20, 20, 22, 22), 12f);
 
         TextMeshProUGUI title = BrandUI.MakeText(card, "Title", 44f, BrandUI.CreamText);
         BrandUI.SetHeight(title, 62f);
 
-        // 칸을 직접 눌러 수령하므로 손가락이 닿을 만큼 커야 합니다. 7칸을 한 줄에 늘어놓으면
-        // 한 칸이 90px대라 너무 좁아, 4열 두 줄로 나눠 칸을 두 배 가까이 키웁니다.
+        // 칸만 봐서는 마지막 날 보상이 세 배가 넘는다는 게 안 보입니다. 한 줄로 말해 줍니다.
+        TextMeshProUGUI streak = BrandUI.MakeText(card, "Streak", 22f, BrandUI.CreamText);
+        BrandUI.SetHeight(streak, 34f);
+
         // 이전 버전의 가로 한 줄 배치와 별도 수령 버튼이 남아 있으면 정리합니다.
         // 지우지 않으면 카드에 눌리지 않는 낡은 버튼이 그대로 남습니다.
         BrandUI.RemoveChild(card, "Row");
         BrandUI.RemoveChild(card, "Claim");
-        RectTransform grid = BrandUI.EnsureChild(card, "Grid");
-        const int columns = 4;
+
+        // 1~6일차만 격자에 담고 7일차는 아래 가로 바로 뺍니다. 보상이 10·10·20·20·30·30·100이라
+        // 마지막 날만 성격이 다른데, 일곱 칸을 똑같이 늘어놓으면 그 사실이 묻힙니다.
+        const int columns = 3;
         const float cellSpacing = 8f;
+        int gridDays = DailyMissionManager.AttendanceCycle - 1;
         float cardWidth = reference.x * (0.95f - 0.05f);
-        float cellSize = (cardWidth - 40f - cellSpacing * (columns - 1)) / columns;
-        int rowCount = Mathf.CeilToInt(DailyMissionManager.AttendanceCycle / (float)columns);
+        float cellWidth = (cardWidth - 40f - cellSpacing * (columns - 1)) / columns;
+        const float cellHeight = 150f;
+        int rowCount = Mathf.CeilToInt(gridDays / (float)columns);
+
+        RectTransform grid = BrandUI.EnsureChild(card, "Grid");
         GridLayoutGroup gridLayout = BrandUI.Ensure<GridLayoutGroup>(grid.gameObject);
-        gridLayout.cellSize = new Vector2(cellSize, cellSize);
+        gridLayout.cellSize = new Vector2(cellWidth, cellHeight);
         gridLayout.spacing = new Vector2(cellSpacing, cellSpacing);
         gridLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         gridLayout.constraintCount = columns;
         gridLayout.childAlignment = TextAnchor.UpperCenter;
-        BrandUI.SetHeight(grid, cellSize * rowCount + cellSpacing * (rowCount - 1));
+        BrandUI.SetHeight(grid, cellHeight * rowCount + cellSpacing * (rowCount - 1));
 
-        Sprite crystal = BrandUI.LoadSprite(BrandUI.CrystalIconPath);
+        // 7일차는 예전에 격자 안에 있었습니다. 남겨 두면 아래 바와 함께 두 벌이 됩니다.
+        BrandUI.RemoveChild(grid, $"Day_{DailyMissionManager.AttendanceCycle}");
+
+        // 개근 바는 항상 금테를 두르고 있어, 아직 못 받은 날이어도 특별하게 보입니다.
+        RectTransform jackpot = BrandUI.EnsureChild(card, "Jackpot");
+        BrandUI.StylePanel(jackpot, goldSquare, Color.white, 0.5f).raycastTarget = false;
+        BrandUI.SetHeight(jackpot, 104f);
 
         var cells = new Image[DailyMissionManager.AttendanceCycle];
         var labels = new TextMeshProUGUI[DailyMissionManager.AttendanceCycle];
@@ -299,28 +317,44 @@ public static class RetentionUIBuilder
         var stateTexts = new TextMeshProUGUI[DailyMissionManager.AttendanceCycle];
         for (int day = 1; day <= DailyMissionManager.AttendanceCycle; day++)
         {
-            RectTransform cell = BrandUI.EnsureChild(grid, $"Day_{day}");
-            Image cellImage = BrandUI.StylePanel(cell, whitePill, BrandUI.SlotNavy, 1.6f);
+            bool isFinal = day == DailyMissionManager.AttendanceCycle;
+            RectTransform host = isFinal ? jackpot : grid;
+            RectTransform cell = BrandUI.EnsureChild(host, $"Day_{day}");
+            if (isFinal) BrandUI.Anchor(cell, Vector2.zero, Vector2.one, 5f); // 금테가 5px 드러나게
+
+            // 바탕은 AttendancePanel이 상태에 따라 갈아 끼웁니다. 여기서는 잠긴 모습을 기본값으로 둡니다.
+            Image cellImage = BrandUI.StylePanel(cell, navySquare, Color.white, isFinal ? 0.6f : 1.1f);
             cellImage.raycastTarget = true; // 칸이 곧 버튼입니다
             Button cellButton = BrandUI.Ensure<Button>(cell.gameObject);
-            cellButton.transition = Selectable.Transition.None; // 색은 AttendancePanel이 상태에 따라 직접 칠합니다
+            cellButton.transition = Selectable.Transition.None;
             cellButton.targetGraphic = cellImage;
 
-            // 위에서부터 일차 / 크리스탈 아이콘과 수량 / 상태. 아이콘과 수량은 한 줄에 나란히 둡니다.
-            TextMeshProUGUI label = BrandUI.MakeText(cell, "Label", 20f, BrandUI.CreamText);
-            BrandUI.Anchor((RectTransform)label.transform, new Vector2(0.04f, 0.66f), new Vector2(0.96f, 0.97f));
-
+            TextMeshProUGUI label = BrandUI.MakeText(cell, "Label", isFinal ? 24f : 20f, BrandUI.CreamText,
+                isFinal ? TextAlignmentOptions.Left : TextAlignmentOptions.Center);
             Image rewardIcon = BrandUI.MakeImage(cell, "Icon", Color.white);
             rewardIcon.sprite = crystal;
             rewardIcon.preserveAspect = true;
-            BrandUI.Anchor((RectTransform)rewardIcon.transform, new Vector2(0.10f, 0.32f), new Vector2(0.44f, 0.64f));
-
-            TextMeshProUGUI rewardText = BrandUI.MakeText(cell, "Reward", 22f, BrandUI.CreamText,
+            TextMeshProUGUI rewardText = BrandUI.MakeText(cell, "Reward", isFinal ? 34f : 22f, BrandUI.CreamText,
                 TextAlignmentOptions.Left);
-            BrandUI.Anchor((RectTransform)rewardText.transform, new Vector2(0.48f, 0.32f), new Vector2(0.94f, 0.64f));
+            TextMeshProUGUI stateText = BrandUI.MakeText(cell, "State", isFinal ? 20f : 18f, BrandUI.CreamText,
+                isFinal ? TextAlignmentOptions.Left : TextAlignmentOptions.Center);
 
-            TextMeshProUGUI stateText = BrandUI.MakeText(cell, "State", 18f, BrandUI.CreamText);
-            BrandUI.Anchor((RectTransform)stateText.transform, new Vector2(0.04f, 0.04f), new Vector2(0.96f, 0.30f));
+            if (isFinal)
+            {
+                // 가로 바: 왼쪽에 이름과 상태를 두 줄로, 오른쪽에 크리스탈과 수량을 크게.
+                BrandUI.Anchor((RectTransform)label.transform, new Vector2(0.04f, 0.46f), new Vector2(0.52f, 0.94f));
+                BrandUI.Anchor((RectTransform)stateText.transform, new Vector2(0.04f, 0.08f), new Vector2(0.52f, 0.44f));
+                BrandUI.Anchor((RectTransform)rewardIcon.transform, new Vector2(0.58f, 0.18f), new Vector2(0.73f, 0.82f));
+                BrandUI.Anchor((RectTransform)rewardText.transform, new Vector2(0.75f, 0.15f), new Vector2(0.96f, 0.85f));
+            }
+            else
+            {
+                // 정사각 칸: 위에서부터 일차 / 크리스탈과 수량 / 상태.
+                BrandUI.Anchor((RectTransform)label.transform, new Vector2(0.04f, 0.66f), new Vector2(0.96f, 0.97f));
+                BrandUI.Anchor((RectTransform)rewardIcon.transform, new Vector2(0.14f, 0.32f), new Vector2(0.44f, 0.64f));
+                BrandUI.Anchor((RectTransform)rewardText.transform, new Vector2(0.48f, 0.32f), new Vector2(0.90f, 0.64f));
+                BrandUI.Anchor((RectTransform)stateText.transform, new Vector2(0.04f, 0.04f), new Vector2(0.96f, 0.30f));
+            }
 
             cells[day - 1] = cellImage;
             labels[day - 1] = label;
@@ -338,9 +372,11 @@ public static class RetentionUIBuilder
 
         // 재실행으로 자식 순서가 흐트러지지 않도록 매번 인덱스를 명시적으로 고정합니다.
         title.rectTransform.SetSiblingIndex(0);
-        grid.SetSiblingIndex(1);
-        status.rectTransform.SetSiblingIndex(2);
-        close.transform.SetSiblingIndex(3);
+        streak.rectTransform.SetSiblingIndex(1);
+        grid.SetSiblingIndex(2);
+        jackpot.SetSiblingIndex(3);
+        status.rectTransform.SetSiblingIndex(4);
+        close.transform.SetSiblingIndex(5);
 
         AttendancePanel panel = BrandUI.Ensure<AttendancePanel>(root.gameObject);
         SerializedObject so = new SerializedObject(panel);
@@ -354,6 +390,10 @@ public static class RetentionUIBuilder
         BrandUI.SetRefArray(so, "m_rewardIcons", rewardIcons);
         BrandUI.SetRefArray(so, "m_rewardTexts", rewardTexts);
         BrandUI.SetRefArray(so, "m_stateTexts", stateTexts);
+        BrandUI.SetRef(so, "m_streakText", streak);
+        BrandUI.SetRef(so, "m_lockedSprite", navySquare);
+        BrandUI.SetRef(so, "m_todaySprite", goldSquare);
+        BrandUI.SetRef(so, "m_claimedSprite", greenSquare);
         BrandUI.SetRef(so, "m_statusText", status);
         so.ApplyModifiedPropertiesWithoutUndo();
         return panel;

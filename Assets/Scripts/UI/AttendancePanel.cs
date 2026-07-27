@@ -12,9 +12,8 @@ public class AttendancePanel : MonoBehaviour
     static readonly Color CreamText = new Color(0.96f, 0.90f, 0.78f, 1f);
     static readonly Color DoneText = new Color(0.55f, 0.58f, 0.66f, 1f);
     static readonly Color ReadyText = new Color(1.00f, 0.83f, 0.28f, 1f);
-    static readonly Color TodayTint = new Color(1.00f, 0.83f, 0.28f, 1f);
-    static readonly Color ClaimedTint = new Color(0.24f, 0.30f, 0.24f, 1f);
-    static readonly Color UpcomingTint = new Color(0.10f, 0.09f, 0.20f, 1f);
+    /// <summary>받은 칸의 초록 바탕을 눌러 가라앉힙니다. 다른 상태는 스프라이트 색을 그대로 씁니다.</summary>
+    static readonly Color ClaimedTint = new Color(0.42f, 0.50f, 0.42f, 1f);
     static readonly Color TodayLabel = new Color(0.11f, 0.08f, 0.30f, 1f);
     static readonly Color ClaimedIcon = new Color(1f, 1f, 1f, 0.35f);
 
@@ -37,6 +36,13 @@ public class AttendancePanel : MonoBehaviour
     [SerializeField] TextMeshProUGUI[] m_rewardTexts = new TextMeshProUGUI[DailyMissionManager.AttendanceCycle];
     [Tooltip("칸 아래 '받기' / '완료' 표시")]
     [SerializeField] TextMeshProUGUI[] m_stateTexts = new TextMeshProUGUI[DailyMissionManager.AttendanceCycle];
+    [Tooltip("연속 며칠째인지, 개근까지 며칠 남았는지")]
+    [SerializeField] TextMeshProUGUI m_streakText;
+
+    [Header("Cell art — 상태를 색이 아니라 재질로 구분합니다")]
+    [SerializeField] Sprite m_lockedSprite;
+    [SerializeField] Sprite m_todaySprite;
+    [SerializeField] Sprite m_claimedSprite;
 
     [Header("Feedback")]
     [SerializeField] TextMeshProUGUI m_statusText;
@@ -88,6 +94,33 @@ public class AttendancePanel : MonoBehaviour
         Populate();
     }
 
+    /// <summary>
+    /// 며칠째 이어오고 있고 개근까지 얼마나 남았는지 한 줄로 알려줍니다.
+    /// 칸만 봐서는 7일차 보상이 다른 날의 세 배가 넘는다는 게 드러나지 않습니다.
+    /// </summary>
+    void PopulateStreak(DailyMissionManager daily, bool english, int claimedDay, int pendingDay, bool canClaim)
+    {
+        if (m_streakText == null) return;
+
+        // 오늘 몫을 아직 안 받았다면 지금까지 채운 날은 pendingDay 직전까지입니다.
+        int reached = canClaim ? pendingDay - 1 : claimedDay;
+        int remaining = DailyMissionManager.AttendanceCycle - reached;
+        int finalReward = daily != null ? daily.GetAttendanceReward(DailyMissionManager.AttendanceCycle) : 0;
+
+        if (remaining <= 0)
+            m_streakText.text = english ? "FULL WEEK COMPLETE" : "개근 달성";
+        else if (reached <= 0)
+            m_streakText.text = english
+                ? $"Come back {DailyMissionManager.AttendanceCycle} days for {finalReward:N0} crystals"
+                : $"{DailyMissionManager.AttendanceCycle}일 개근하면 크리스탈 {finalReward:N0}";
+        else
+            m_streakText.text = english
+                ? $"{reached} day streak · {remaining} to go for {finalReward:N0}"
+                : $"연속 {reached}일째 · {remaining}일 뒤 크리스탈 {finalReward:N0}";
+
+        m_streakText.color = ReadyText;
+    }
+
     void Populate()
     {
         bool english = GameLanguage.IsEnglish;
@@ -100,6 +133,8 @@ public class AttendancePanel : MonoBehaviour
         int pendingDay = daily != null ? daily.PendingAttendanceDay : 1;
         bool canClaim = daily != null && daily.CanClaimAttendance;
 
+        PopulateStreak(daily, english, claimedDay, pendingDay, canClaim);
+
         for (int day = 1; day <= DailyMissionManager.AttendanceCycle; day++)
         {
             int slot = day - 1;
@@ -108,14 +143,23 @@ public class AttendancePanel : MonoBehaviour
             bool isClaimed = !canClaim ? day <= claimedDay : day < pendingDay;
 
             if (slot < m_cells.Length && m_cells[slot] != null)
-                m_cells[slot].color = isToday ? TodayTint : isClaimed ? ClaimedTint : UpcomingTint;
+            {
+                // 스프라이트가 색을 갖고 있으므로 틴트는 받은 칸을 눌러 가라앉힐 때만 씁니다.
+                Sprite art = isToday ? m_todaySprite : isClaimed ? m_claimedSprite : m_lockedSprite;
+                if (art != null) m_cells[slot].sprite = art;
+                m_cells[slot].color = isClaimed ? ClaimedTint : Color.white;
+            }
 
             // 오늘 칸은 금색 바탕이라 글자를 어둡게 뒤집어야 읽힙니다.
             Color textColor = isToday ? TodayLabel : isClaimed ? DoneText : CreamText;
 
             if (slot < m_labels.Length && m_labels[slot] != null)
             {
-                m_labels[slot].text = english ? $"DAY {day}" : $"{day}일차";
+                // 마지막 날은 보상이 다른 날의 세 배가 넘습니다. 이름으로도 그렇게 부릅니다.
+                bool isFinal = day == DailyMissionManager.AttendanceCycle;
+                m_labels[slot].text = isFinal
+                    ? (english ? $"DAY {day}  FULL WEEK" : $"{day}일차  개근 보상")
+                    : (english ? $"DAY {day}" : $"{day}일차");
                 m_labels[slot].color = textColor;
             }
 
