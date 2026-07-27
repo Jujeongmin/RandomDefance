@@ -67,7 +67,7 @@ public class MainMenuCarouselUI : MonoBehaviour, IBeginDragHandler, IDragHandler
         public TextMeshProUGUI effectText;
         [Tooltip("게이지 위에 얹는 'Lv 3 / 20'")]
         public TextMeshProUGUI levelText;
-        [Tooltip("레벨 비율만큼 차오르는 금색 바 (Image.type = Filled)")]
+        [Tooltip("레벨 비율만큼 차오르는 금색 바. anchorMax.x를 비율로 움직여 채운다")]
         public Image gaugeFill;
         [Tooltip("버튼 안 크리스탈 그림. 최대 레벨이면 숨긴다")]
         public Image costIcon;
@@ -281,7 +281,15 @@ public class MainMenuCarouselUI : MonoBehaviour, IBeginDragHandler, IDragHandler
                 if (row.nameText != null) row.nameText.text = GetResearchName(row.type);
                 if (row.effectText != null) row.effectText.text = GetCurrentResearchEffect(row.type, level);
                 if (row.levelText != null) row.levelText.text = $"Lv {level} / {max}";
-                if (row.gaugeFill != null) row.gaugeFill.fillAmount = max > 0 ? (float)level / max : 0f;
+                if (row.gaugeFill != null)
+                {
+                    // 스프라이트 없는 사각 채움이라 fillAmount 대신 앵커 폭으로 채웁니다.
+                    float ratio = max > 0 ? (float)level / max : 0f;
+                    RectTransform fill = row.gaugeFill.rectTransform;
+                    fill.anchorMax = new Vector2(ratio, 1f);
+                    // 0에 가까우면 안쪽 여백 때문에 폭이 음수가 되어 이상하게 그려집니다. 그냥 끕니다.
+                    row.gaugeFill.enabled = ratio > 0.02f;
+                }
 
                 // 최대 레벨이면 가격 대신 MAX를 보여주고 크리스탈 그림은 치운다.
                 if (row.costText != null)

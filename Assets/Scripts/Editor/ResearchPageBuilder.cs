@@ -120,11 +120,15 @@ public static class ResearchPageBuilder
             gaugeBackImage.color = GaugeBack;
             gaugeBackImage.raycastTarget = false;
 
+            // 스프라이트 없는 Image는 Filled여도 fillAmount를 무시하고 통짜로 그립니다.
+            // 대신 앵커 오른쪽 끝(anchorMax.x)을 레벨 비율로 움직여 채웁니다 — RefreshAll이 갱신.
             Image gaugeFill = BrandUI.MakeImage(gaugeBack, "Fill", GaugeGold);
-            gaugeFill.type = Image.Type.Filled;
-            gaugeFill.fillMethod = Image.FillMethod.Horizontal;
-            gaugeFill.fillOrigin = (int)Image.OriginHorizontal.Left;
-            BrandUI.Anchor((RectTransform)gaugeFill.transform, Vector2.zero, Vector2.one, 3f);
+            gaugeFill.type = Image.Type.Simple;
+            RectTransform fillRect = (RectTransform)gaugeFill.transform;
+            fillRect.anchorMin = Vector2.zero;
+            fillRect.anchorMax = new Vector2(0f, 1f); // x는 런타임이 레벨 비율로 채운다
+            fillRect.offsetMin = new Vector2(3f, 3f);
+            fillRect.offsetMax = new Vector2(-3f, -3f);
 
             TextMeshProUGUI level = BrandUI.MakeText(gaugeBack, "Level", 15f, BrandUI.CreamText);
             BrandUI.Stretch((RectTransform)level.transform);
@@ -157,16 +161,22 @@ public static class ResearchPageBuilder
             element.FindPropertyRelative("gaugeFill").objectReferenceValue = gaugeFill;
             element.FindPropertyRelative("costIcon").objectReferenceValue = costIcon;
             element.FindPropertyRelative("costText").objectReferenceValue = cost;
-
-            row.SetSiblingIndex(i + 1); // 0번은 헤더
         }
 
         so.ApplyModifiedPropertiesWithoutUndo();
 
-        // 힌트는 반드시 마지막 자식이어야 합니다 — ApplyStaticLanguage가
-        // 페이지의 마지막 TMP를 힌트로 보고 문구를 다시 씁니다.
         RectTransform hint = BrandUI.EnsureChild(panel, "ResearchHint");
         BrandUI.SetHeight(hint, 40f);
+
+        // 모든 자식이 준비된 뒤 한 번에 순서를 박습니다. 헤더는 반드시 첫 자식이어야 하고
+        // (ApplyStaticLanguage가 첫 TMP에 제목을 씀), 힌트는 마지막이어야 합니다(마지막 TMP에 문구를 씀).
+        // 새로 만든 오브젝트는 맨 뒤에 붙기 때문에, 여기서 고정하지 않으면 헤더가 목록 중간으로 밀립니다.
+        header.SetSiblingIndex(0);
+        for (int i = 0; i < Rows.Length; i++)
+        {
+            Transform row = panel.Find(Rows[i].name);
+            if (row != null) row.SetSiblingIndex(i + 1);
+        }
         hint.SetSiblingIndex(Rows.Length + 1);
 
         EditorSceneManager.MarkSceneDirty(scene);
