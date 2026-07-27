@@ -261,7 +261,6 @@ public static class RetentionUIBuilder
 
         Sprite navySquare = BrandUI.LoadAtlasSprite(BrandUI.NavySquare);
         Sprite goldSquare = BrandUI.LoadAtlasSprite(BrandUI.GoldSquare);
-        Sprite greenSquare = BrandUI.LoadAtlasSprite(BrandUI.GreenSquare);
         Sprite crystal = BrandUI.LoadSprite(BrandUI.CrystalIconPath);
 
         Vector2 reference = BrandUI.ReferenceResolution(canvas);
@@ -309,7 +308,12 @@ public static class RetentionUIBuilder
         BrandUI.StylePanel(jackpot, goldSquare, Color.white, 0.5f).raycastTarget = false;
         BrandUI.SetHeight(jackpot, 104f);
 
+        Sprite whitePill = BrandUI.LoadAtlasSprite(BrandUI.WhitePill);
+        Sprite checkIconSprite = BrandUI.LoadIconSprite(BrandUI.IconCheck);
+
         var cells = new Image[DailyMissionManager.AttendanceCycle];
+        var rims = new Image[DailyMissionManager.AttendanceCycle];
+        var checkIcons = new Image[DailyMissionManager.AttendanceCycle];
         var labels = new TextMeshProUGUI[DailyMissionManager.AttendanceCycle];
         var cellButtons = new Button[DailyMissionManager.AttendanceCycle];
         var rewardIcons = new Image[DailyMissionManager.AttendanceCycle];
@@ -322,12 +326,20 @@ public static class RetentionUIBuilder
             RectTransform cell = BrandUI.EnsureChild(host, $"Day_{day}");
             if (isFinal) BrandUI.Anchor(cell, Vector2.zero, Vector2.one, 5f); // 금테가 5px 드러나게
 
-            // 바탕은 AttendancePanel이 상태에 따라 갈아 끼웁니다. 여기서는 잠긴 모습을 기본값으로 둡니다.
-            Image cellImage = BrandUI.StylePanel(cell, navySquare, Color.white, isFinal ? 0.6f : 1.1f);
-            cellImage.raycastTarget = true; // 칸이 곧 버튼입니다
+            // 칸의 겉면은 림입니다. 오늘 칸에서만 금색으로 켜지고 평소엔 투명하지만,
+            // 버튼의 레이캐스트 대상이라 항상 활성 상태로 둡니다. 색은 AttendancePanel이 정합니다.
+            Image rim = BrandUI.StylePanel(cell, whitePill, Color.clear, 1.2f);
+            rim.raycastTarget = true;
             Button cellButton = BrandUI.Ensure<Button>(cell.gameObject);
             cellButton.transition = Selectable.Transition.None;
-            cellButton.targetGraphic = cellImage;
+            cellButton.targetGraphic = rim;
+
+            // 바탕은 상태와 무관하게 전부 같은 네이비 카드입니다. 림이 4px 삐져나오게 안쪽으로 넣습니다.
+            RectTransform body = BrandUI.EnsureChild(cell, "Body");
+            BrandUI.Anchor(body, Vector2.zero, Vector2.one, 4f);
+            Image cellImage = BrandUI.StylePanel(body, navySquare, Color.white, isFinal ? 0.6f : 1.1f);
+            cellImage.raycastTarget = false;
+            body.SetSiblingIndex(0); // 글자·아이콘보다 뒤에 깔리게
 
             TextMeshProUGUI label = BrandUI.MakeText(cell, "Label", isFinal ? 24f : 20f, BrandUI.CreamText,
                 isFinal ? TextAlignmentOptions.Left : TextAlignmentOptions.Center);
@@ -356,7 +368,19 @@ public static class RetentionUIBuilder
                 BrandUI.Anchor((RectTransform)stateText.transform, new Vector2(0.04f, 0.04f), new Vector2(0.96f, 0.30f));
             }
 
+            // 받은 칸에 찍히는 초록 체크. 크리스탈 위에 겹치도록 마지막 자식으로 둡니다.
+            Image check = BrandUI.MakeImage(cell, "Check", Color.white);
+            check.sprite = checkIconSprite;
+            check.preserveAspect = true;
+            RectTransform checkRect = (RectTransform)check.transform;
+            if (isFinal) BrandUI.Anchor(checkRect, new Vector2(0.58f, 0.18f), new Vector2(0.73f, 0.82f));
+            else BrandUI.Anchor(checkRect, new Vector2(0.28f, 0.30f), new Vector2(0.72f, 0.68f));
+            checkRect.SetAsLastSibling();
+            check.gameObject.SetActive(false); // 켜고 끄는 건 AttendancePanel의 몫
+
             cells[day - 1] = cellImage;
+            rims[day - 1] = rim;
+            checkIcons[day - 1] = check;
             labels[day - 1] = label;
             cellButtons[day - 1] = cellButton;
             rewardIcons[day - 1] = rewardIcon;
@@ -391,9 +415,8 @@ public static class RetentionUIBuilder
         BrandUI.SetRefArray(so, "m_rewardTexts", rewardTexts);
         BrandUI.SetRefArray(so, "m_stateTexts", stateTexts);
         BrandUI.SetRef(so, "m_streakText", streak);
-        BrandUI.SetRef(so, "m_lockedSprite", navySquare);
-        BrandUI.SetRef(so, "m_todaySprite", goldSquare);
-        BrandUI.SetRef(so, "m_claimedSprite", greenSquare);
+        BrandUI.SetRefArray(so, "m_rims", rims);
+        BrandUI.SetRefArray(so, "m_checkIcons", checkIcons);
         BrandUI.SetRef(so, "m_statusText", status);
         so.ApplyModifiedPropertiesWithoutUndo();
         return panel;

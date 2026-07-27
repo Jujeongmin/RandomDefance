@@ -12,9 +12,8 @@ public class AttendancePanel : MonoBehaviour
     static readonly Color CreamText = new Color(0.96f, 0.90f, 0.78f, 1f);
     static readonly Color DoneText = new Color(0.55f, 0.58f, 0.66f, 1f);
     static readonly Color ReadyText = new Color(1.00f, 0.83f, 0.28f, 1f);
-    /// <summary>받은 칸의 초록 바탕을 눌러 가라앉힙니다. 다른 상태는 스프라이트 색을 그대로 씁니다.</summary>
-    static readonly Color ClaimedTint = new Color(0.42f, 0.50f, 0.42f, 1f);
-    static readonly Color TodayLabel = new Color(0.11f, 0.08f, 0.30f, 1f);
+    /// <summary>받은 칸의 바탕을 살짝 가라앉혀 지나간 날로 보이게 합니다.</summary>
+    static readonly Color ClaimedTint = new Color(0.62f, 0.62f, 0.68f, 1f);
     static readonly Color ClaimedIcon = new Color(1f, 1f, 1f, 0.35f);
 
     [Header("References (씬에서 할당)")]
@@ -38,11 +37,10 @@ public class AttendancePanel : MonoBehaviour
     [SerializeField] TextMeshProUGUI[] m_stateTexts = new TextMeshProUGUI[DailyMissionManager.AttendanceCycle];
     [Tooltip("연속 며칠째인지, 개근까지 며칠 남았는지")]
     [SerializeField] TextMeshProUGUI m_streakText;
-
-    [Header("Cell art — 상태를 색이 아니라 재질로 구분합니다")]
-    [SerializeField] Sprite m_lockedSprite;
-    [SerializeField] Sprite m_todaySprite;
-    [SerializeField] Sprite m_claimedSprite;
+    [Tooltip("오늘 칸에만 켜지는 금테. 칸 배경 뒤에서 4px 삐져나온다")]
+    [SerializeField] Image[] m_rims = new Image[DailyMissionManager.AttendanceCycle];
+    [Tooltip("받은 칸 위에 찍히는 초록 체크")]
+    [SerializeField] Image[] m_checkIcons = new Image[DailyMissionManager.AttendanceCycle];
 
     [Header("Feedback")]
     [SerializeField] TextMeshProUGUI m_statusText;
@@ -138,20 +136,22 @@ public class AttendancePanel : MonoBehaviour
         for (int day = 1; day <= DailyMissionManager.AttendanceCycle; day++)
         {
             int slot = day - 1;
-            // 오늘 받을 칸은 금색, 이미 받은 칸은 어두운 초록, 남은 칸은 기본 네이비.
+            // 바탕은 전부 같은 네이비입니다. 오늘 칸은 금테가 켜지고, 받은 칸은 체크가 찍힙니다 —
+            // 칸 전체를 원색으로 갈아치우는 것보다 조용하고, 상태는 더 분명하게 읽힙니다.
             bool isToday = canClaim && day == pendingDay;
             bool isClaimed = !canClaim ? day <= claimedDay : day < pendingDay;
 
             if (slot < m_cells.Length && m_cells[slot] != null)
-            {
-                // 스프라이트가 색을 갖고 있으므로 틴트는 받은 칸을 눌러 가라앉힐 때만 씁니다.
-                Sprite art = isToday ? m_todaySprite : isClaimed ? m_claimedSprite : m_lockedSprite;
-                if (art != null) m_cells[slot].sprite = art;
                 m_cells[slot].color = isClaimed ? ClaimedTint : Color.white;
-            }
 
-            // 오늘 칸은 금색 바탕이라 글자를 어둡게 뒤집어야 읽힙니다.
-            Color textColor = isToday ? TodayLabel : isClaimed ? DoneText : CreamText;
+            // 림은 항상 켜 두고 색만 바꿉니다. 꺼 버리면 버튼의 레이캐스트 대상이 사라져 탭이 안 먹습니다.
+            if (slot < m_rims.Length && m_rims[slot] != null)
+                m_rims[slot].color = isToday ? ReadyText : Color.clear;
+
+            if (slot < m_checkIcons.Length && m_checkIcons[slot] != null)
+                m_checkIcons[slot].gameObject.SetActive(isClaimed);
+
+            Color textColor = isToday ? ReadyText : isClaimed ? DoneText : CreamText;
 
             if (slot < m_labels.Length && m_labels[slot] != null)
             {
