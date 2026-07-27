@@ -16,6 +16,7 @@ public class AttendancePanel : MonoBehaviour
     static readonly Color ClaimedTint = new Color(0.24f, 0.30f, 0.24f, 1f);
     static readonly Color UpcomingTint = new Color(0.10f, 0.09f, 0.20f, 1f);
     static readonly Color TodayLabel = new Color(0.11f, 0.08f, 0.30f, 1f);
+    static readonly Color ClaimedIcon = new Color(1f, 1f, 1f, 0.35f);
 
     [Header("References (씬에서 할당)")]
     [SerializeField] Button m_bgButton;
@@ -26,9 +27,16 @@ public class AttendancePanel : MonoBehaviour
     [Header("Attendance")]
     [Tooltip("1~7일차 칸 배경")]
     [SerializeField] Image[] m_cells = new Image[DailyMissionManager.AttendanceCycle];
+    [Tooltip("칸 위쪽 '1일차' 표시")]
     [SerializeField] TextMeshProUGUI[] m_labels = new TextMeshProUGUI[DailyMissionManager.AttendanceCycle];
     [Tooltip("칸 자체가 수령 버튼입니다. 오늘 받을 칸만 눌립니다.")]
     [SerializeField] Button[] m_cellButtons = new Button[DailyMissionManager.AttendanceCycle];
+    [Tooltip("보상이 크리스탈이라는 걸 보여주는 아이콘")]
+    [SerializeField] Image[] m_rewardIcons = new Image[DailyMissionManager.AttendanceCycle];
+    [Tooltip("아이콘 옆 보상 수량")]
+    [SerializeField] TextMeshProUGUI[] m_rewardTexts = new TextMeshProUGUI[DailyMissionManager.AttendanceCycle];
+    [Tooltip("칸 아래 '받기' / '완료' 표시")]
+    [SerializeField] TextMeshProUGUI[] m_stateTexts = new TextMeshProUGUI[DailyMissionManager.AttendanceCycle];
 
     [Header("Feedback")]
     [SerializeField] TextMeshProUGUI m_statusText;
@@ -102,16 +110,33 @@ public class AttendancePanel : MonoBehaviour
             if (slot < m_cells.Length && m_cells[slot] != null)
                 m_cells[slot].color = isToday ? TodayTint : isClaimed ? ClaimedTint : UpcomingTint;
 
+            // 오늘 칸은 금색 바탕이라 글자를 어둡게 뒤집어야 읽힙니다.
+            Color textColor = isToday ? TodayLabel : isClaimed ? DoneText : CreamText;
+
             if (slot < m_labels.Length && m_labels[slot] != null)
             {
-                int reward = daily != null ? daily.GetAttendanceReward(day) : 0;
-                string dayLine = english ? $"DAY {day}" : $"{day}일차";
-                // 오늘 칸에만 '받기'를 붙여, 누를 수 있는 칸이 어디인지 색 말고도 드러냅니다.
-                if (isClaimed) m_labels[slot].text = $"{dayLine}\n{(english ? "DONE" : "완료")}";
-                else if (isToday) m_labels[slot].text = $"{dayLine}\n{reward:N0}\n{(english ? "TAP" : "받기")}";
-                else m_labels[slot].text = $"{dayLine}\n{reward:N0}";
+                m_labels[slot].text = english ? $"DAY {day}" : $"{day}일차";
+                m_labels[slot].color = textColor;
+            }
 
-                m_labels[slot].color = isToday ? TodayLabel : isClaimed ? DoneText : CreamText;
+            int reward = daily != null ? daily.GetAttendanceReward(day) : 0;
+
+            if (slot < m_rewardTexts.Length && m_rewardTexts[slot] != null)
+            {
+                m_rewardTexts[slot].text = $"{reward:N0}";
+                m_rewardTexts[slot].color = textColor;
+            }
+
+            // 받은 칸은 크리스탈을 흐리게 해 이미 지나간 날임을 아이콘만 봐도 알게 합니다.
+            if (slot < m_rewardIcons.Length && m_rewardIcons[slot] != null)
+                m_rewardIcons[slot].color = isClaimed ? ClaimedIcon : Color.white;
+
+            if (slot < m_stateTexts.Length && m_stateTexts[slot] != null)
+            {
+                m_stateTexts[slot].text = isToday ? (english ? "TAP" : "받기")
+                    : isClaimed ? (english ? "DONE" : "완료")
+                    : string.Empty;
+                m_stateTexts[slot].color = textColor;
             }
 
             if (slot < m_cellButtons.Length && m_cellButtons[slot] != null)

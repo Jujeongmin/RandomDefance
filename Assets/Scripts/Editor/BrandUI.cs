@@ -17,6 +17,8 @@ public static class BrandUI
     public const string IconAtlasPath = "Assets/Down/Universal Stylized UI/Atlases/Complete_Stylized_UI_elements_icons_2.png";
     public const string FontPath = "Assets/GData/Fonts/Paperlogy-9Black SDF.asset";
     public const string CharacterDir = "Assets/GData/Image/Character";
+    /// <summary>재화 바가 쓰는 크리스탈 이미지. 보상이 크리스탈이면 같은 그림을 써서 무엇을 주는지 바로 읽히게 합니다.</summary>
+    public const string CrystalIconPath = "Assets/GData/Image/Cristal.png";
 
     // 아틀라스 스프라이트 이름
     public const string GoldSquare = "Complete_Stylized_UI_elements_buttons_36";
@@ -67,6 +69,15 @@ public static class BrandUI
     }
 
     public static TMP_FontAsset LoadFont() => AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontPath);
+
+    /// <summary>단일 스프라이트 에셋을 경로로 불러옵니다. 아틀라스가 아닌 낱장 이미지용입니다.</summary>
+    public static Sprite LoadSprite(string path)
+    {
+        Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+        if (sprite == null)
+            throw new System.InvalidOperationException($"스프라이트를 찾지 못했습니다: {path}");
+        return sprite;
+    }
 
     // ---- 계층 헬퍼 ----
 

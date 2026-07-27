@@ -289,9 +289,14 @@ public static class RetentionUIBuilder
         gridLayout.childAlignment = TextAnchor.UpperCenter;
         BrandUI.SetHeight(grid, cellSize * rowCount + cellSpacing * (rowCount - 1));
 
+        Sprite crystal = BrandUI.LoadSprite(BrandUI.CrystalIconPath);
+
         var cells = new Image[DailyMissionManager.AttendanceCycle];
         var labels = new TextMeshProUGUI[DailyMissionManager.AttendanceCycle];
         var cellButtons = new Button[DailyMissionManager.AttendanceCycle];
+        var rewardIcons = new Image[DailyMissionManager.AttendanceCycle];
+        var rewardTexts = new TextMeshProUGUI[DailyMissionManager.AttendanceCycle];
+        var stateTexts = new TextMeshProUGUI[DailyMissionManager.AttendanceCycle];
         for (int day = 1; day <= DailyMissionManager.AttendanceCycle; day++)
         {
             RectTransform cell = BrandUI.EnsureChild(grid, $"Day_{day}");
@@ -301,12 +306,28 @@ public static class RetentionUIBuilder
             cellButton.transition = Selectable.Transition.None; // 색은 AttendancePanel이 상태에 따라 직접 칠합니다
             cellButton.targetGraphic = cellImage;
 
-            TextMeshProUGUI label = BrandUI.MakeText(cell, "Label", 22f, BrandUI.CreamText);
-            BrandUI.Stretch((RectTransform)label.transform);
+            // 위에서부터 일차 / 크리스탈 아이콘과 수량 / 상태. 아이콘과 수량은 한 줄에 나란히 둡니다.
+            TextMeshProUGUI label = BrandUI.MakeText(cell, "Label", 20f, BrandUI.CreamText);
+            BrandUI.Anchor((RectTransform)label.transform, new Vector2(0.04f, 0.66f), new Vector2(0.96f, 0.97f));
+
+            Image rewardIcon = BrandUI.MakeImage(cell, "Icon", Color.white);
+            rewardIcon.sprite = crystal;
+            rewardIcon.preserveAspect = true;
+            BrandUI.Anchor((RectTransform)rewardIcon.transform, new Vector2(0.10f, 0.32f), new Vector2(0.44f, 0.64f));
+
+            TextMeshProUGUI rewardText = BrandUI.MakeText(cell, "Reward", 22f, BrandUI.CreamText,
+                TextAlignmentOptions.Left);
+            BrandUI.Anchor((RectTransform)rewardText.transform, new Vector2(0.48f, 0.32f), new Vector2(0.94f, 0.64f));
+
+            TextMeshProUGUI stateText = BrandUI.MakeText(cell, "State", 18f, BrandUI.CreamText);
+            BrandUI.Anchor((RectTransform)stateText.transform, new Vector2(0.04f, 0.04f), new Vector2(0.96f, 0.30f));
 
             cells[day - 1] = cellImage;
             labels[day - 1] = label;
             cellButtons[day - 1] = cellButton;
+            rewardIcons[day - 1] = rewardIcon;
+            rewardTexts[day - 1] = rewardText;
+            stateTexts[day - 1] = stateText;
         }
 
         TextMeshProUGUI status = BrandUI.MakeText(card, "Status", 24f, BrandUI.CreamText);
@@ -330,6 +351,9 @@ public static class RetentionUIBuilder
         BrandUI.SetRefArray(so, "m_cells", cells);
         BrandUI.SetRefArray(so, "m_labels", labels);
         BrandUI.SetRefArray(so, "m_cellButtons", cellButtons);
+        BrandUI.SetRefArray(so, "m_rewardIcons", rewardIcons);
+        BrandUI.SetRefArray(so, "m_rewardTexts", rewardTexts);
+        BrandUI.SetRefArray(so, "m_stateTexts", stateTexts);
         BrandUI.SetRef(so, "m_statusText", status);
         so.ApplyModifiedPropertiesWithoutUndo();
         return panel;
