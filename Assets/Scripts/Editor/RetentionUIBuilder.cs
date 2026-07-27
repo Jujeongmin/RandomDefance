@@ -260,13 +260,13 @@ public static class RetentionUIBuilder
         background.targetGraphic = dim;
 
         Sprite navySquare = BrandUI.LoadAtlasSprite(BrandUI.NavySquare);
-        Sprite goldSquare = BrandUI.LoadAtlasSprite(BrandUI.GoldSquare);
         Sprite crystal = BrandUI.LoadSprite(BrandUI.CrystalIconPath);
 
         Vector2 reference = BrandUI.ReferenceResolution(canvas);
         RectTransform card = BrandUI.EnsureChild(root, "Card");
         BrandUI.Anchor(card, new Vector2(0.05f, 0.20f), new Vector2(0.95f, 0.80f));
-        BrandUI.StylePanel(card, navySquare, Color.white, 0.35f).raycastTarget = true;
+        // 도감·퀘스트 카드와 같은 완전 불투명 배경. 아틀라스 사각형은 결이 비쳐 보여서 쓰지 않습니다.
+        BrandUI.StylePanel(card, BrandUI.LoadAtlasSprite(BrandUI.WhitePill), BrandUI.CardNavy, 0.5f).raycastTarget = true;
         BrandUI.MakeColumn(card, new RectOffset(20, 20, 22, 22), 12f);
 
         TextMeshProUGUI title = BrandUI.MakeText(card, "Title", 44f, BrandUI.CreamText);
@@ -303,9 +303,13 @@ public static class RetentionUIBuilder
         // 7일차는 예전에 격자 안에 있었습니다. 남겨 두면 아래 바와 함께 두 벌이 됩니다.
         BrandUI.RemoveChild(grid, $"Day_{DailyMissionManager.AttendanceCycle}");
 
-        // 개근 바는 항상 금테를 두르고 있어, 아직 못 받은 날이어도 특별하게 보입니다.
+        // 개근 바는 다른 칸과 같은 네이비입니다. 특별함은 통짜 금색 배경이 아니라
+        // 금색 글씨와 큰 크리스탈로 말합니다 — 이전 실행이 남긴 금 테두리는 지웁니다.
         RectTransform jackpot = BrandUI.EnsureChild(card, "Jackpot");
-        BrandUI.StylePanel(jackpot, goldSquare, Color.white, 0.5f).raycastTarget = false;
+        Image jackpotImage = BrandUI.Ensure<Image>(jackpot.gameObject);
+        jackpotImage.sprite = null;
+        jackpotImage.color = Color.clear;
+        jackpotImage.raycastTarget = false;
         BrandUI.SetHeight(jackpot, 104f);
 
         Sprite whitePill = BrandUI.LoadAtlasSprite(BrandUI.WhitePill);
@@ -324,7 +328,7 @@ public static class RetentionUIBuilder
             bool isFinal = day == DailyMissionManager.AttendanceCycle;
             RectTransform host = isFinal ? jackpot : grid;
             RectTransform cell = BrandUI.EnsureChild(host, $"Day_{day}");
-            if (isFinal) BrandUI.Anchor(cell, Vector2.zero, Vector2.one, 5f); // 금테가 5px 드러나게
+            if (isFinal) BrandUI.Anchor(cell, Vector2.zero, Vector2.one); // 바 전체가 곧 칸입니다
 
             // 칸의 겉면은 림입니다. 오늘 칸에서만 금색으로 켜지고 평소엔 투명하지만,
             // 버튼의 레이캐스트 대상이라 항상 활성 상태로 둡니다. 색은 AttendancePanel이 정합니다.

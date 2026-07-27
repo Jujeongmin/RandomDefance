@@ -151,12 +151,12 @@ public class AttendancePanel : MonoBehaviour
             if (slot < m_checkIcons.Length && m_checkIcons[slot] != null)
                 m_checkIcons[slot].gameObject.SetActive(isClaimed);
 
-            Color textColor = isToday ? ReadyText : isClaimed ? DoneText : CreamText;
+            // 마지막 날은 배경 대신 글씨가 금색입니다. 받고 나면 다른 완료 칸과 같이 가라앉습니다.
+            bool isFinal = day == DailyMissionManager.AttendanceCycle;
+            Color textColor = isClaimed ? DoneText : (isToday || isFinal) ? ReadyText : CreamText;
 
             if (slot < m_labels.Length && m_labels[slot] != null)
             {
-                // 마지막 날은 보상이 다른 날의 세 배가 넘습니다. 이름으로도 그렇게 부릅니다.
-                bool isFinal = day == DailyMissionManager.AttendanceCycle;
                 m_labels[slot].text = isFinal
                     ? (english ? $"DAY {day}  FULL WEEK" : $"{day}일차  개근 보상")
                     : (english ? $"DAY {day}" : $"{day}일차");
