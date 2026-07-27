@@ -14,13 +14,25 @@ using UnityEngine;
 /// </summary>
 public static class ReleaseBuilder
 {
+    /// <summary>
+    /// 프로세스 → 사용자 → 시스템 순으로 환경변수를 찾습니다.
+    /// Unity Hub가 트레이에 상주하면 등록 이전의 환경을 물려주므로, 프로세스 환경에
+    /// 변수가 없어도 레지스트리에 등록된 사용자 변수까지 봐야 재시작 없이 동작합니다.
+    /// </summary>
+    static string ReadSecret(string name)
+    {
+        return Environment.GetEnvironmentVariable(name)
+            ?? Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.User)
+            ?? Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.Machine);
+    }
+
     [MenuItem("Tools/Random Defense/Build Release AAB")]
     public static void BuildAab()
     {
-        string keystorePass = Environment.GetEnvironmentVariable("RD_KEYSTORE_PASS");
+        string keystorePass = ReadSecret("RD_KEYSTORE_PASS");
         if (string.IsNullOrEmpty(keystorePass))
             throw new InvalidOperationException("환경변수 RD_KEYSTORE_PASS가 비어 있습니다. 키스토어 비밀번호를 환경변수로 넘겨주세요.");
-        string aliasPass = Environment.GetEnvironmentVariable("RD_KEYALIAS_PASS");
+        string aliasPass = ReadSecret("RD_KEYALIAS_PASS");
         if (string.IsNullOrEmpty(aliasPass)) aliasPass = keystorePass;
 
         PlayerSettings.Android.useCustomKeystore = true;
