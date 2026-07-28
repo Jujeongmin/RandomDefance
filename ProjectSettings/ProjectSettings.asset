@@ -145,7 +145,7 @@ PlayerSettings:
   loadStoreDebugModeEnabled: 0
   visionOSBundleVersion: 1.0
   tvOSBundleVersion: 1.0
-  bundleVersion: 2.1
+  bundleVersion: 4
   preloadedAssets: []
   metroInputSource: 0
   wsaTransparentSwapchain: 0
@@ -848,6 +848,7 @@ PlayerSettings:
   webWasm2023: 0
   webEnableSubmoduleStrippingCompatibility: 0
   scriptingDefineSymbols:
+    Android: GPGS_ENABLED
     Standalone: AMPLIFY_SHADER_EDITOR
     WebGL: AMPLIFY_SHADER_EDITOR
   additionalCompilerArguments: {}
